@@ -77,3 +77,39 @@ textarea {
   padding: 15px;
   font-size: 1.1rem;
 }
+/* Fixes the "Too Wide" issue */
+.script-column {
+  width: 450px; /* This is roughly 4-5 inches depending on screen size */
+  max-width: 90vw; 
+  height: 60vh; /* Limits the height so it doesn't take over the whole screen */
+  border: 2px solid var(--cyan-glow);
+  background: rgba(0, 10, 20, 0.9);
+  overflow: hidden; /* This hides the text until it scrolls into the box */
+  margin: 0 auto;   /* Centers it */
+  position: relative;
+}
+
+.scrolling-text {
+  padding: 20px;
+  white-space: pre-wrap; /* Crucial: Keeps your paragraph breaks! */
+  text-align: center;    /* Keeps eyes centered on the lens */
+  line-height: 1.5;
+}
+
+/* Styling for our new Sliders */
+.control-bar {
+  display: flex;
+  gap: 30px;
+  background: var(--blueprint-blue);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--cyan-glow);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
