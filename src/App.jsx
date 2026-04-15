@@ -11,7 +11,6 @@ function App() {
   const [fontSize, setFontSize] = useState(32);
   const [opacity, setOpacity] = useState(0.8);
 
-  // THE ENGINE: No more setState in the 'else' block
   useEffect(() => {
     let interval;
     if (isLive) {
@@ -22,10 +21,9 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed]);
 
-  // A helper function to close out safely
   const handleEndSession = () => {
     setIsLive(false);
-    setScrollPosition(0); // We reset the scroll here instead!
+    setScrollPosition(0);
   };
 
   return (
@@ -41,31 +39,17 @@ function App() {
             <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
               + INSERT SCRIPT HERE
             </button>
-            {script && <p className="script-status">Script Verified & Ready</p>}
+            {script && <p className="script-status">System Ready</p>}
           </div>
-          {script && <button className="launch-btn" onClick={() => setIsLive(true)}>GO LIVE</button>}
+          {script && <button className="launch-btn" onClick={() => setIsLive(true)}>START PROMPTR</button>}
         </main>
       ) : (
         <div className="teleprompter-view">
-          <div className="control-bar">
-            <div className="control-group">
-              <label>Speed: {scrollSpeed}</label>
-              <input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} />
-            </div>
-            <div className="control-group">
-              <label>Text Size: {fontSize}px</label>
-              <input type="range" min="16" max="60" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} />
-            </div>
-            <div className="control-group">
-              <label>Transparency: {Math.round(opacity * 100)}%</label>
-              <input type="range" min="0.2" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} />
-            </div>
-          </div>
-
-          <div className="teleprompter-layout">
+          
+          <div className="teleprompter-main-layout">
+            {/* 1. THE CENTERED SCRIPT COLUMN */}
             <div className="script-column" style={{ backgroundColor: `rgba(0, 11, 20, ${opacity})` }}>
               <div className="eye-line"></div>
-              
               <div 
                 className="scrolling-text"
                 style={{ 
@@ -79,15 +63,32 @@ function App() {
               </div>
             </div>
 
-            <div className="notes-column">
+            {/* 2. THE RIGHT-SIDE NOTES */}
+            <aside className="notes-column">
               <h3>Presenter Notes</h3>
-              <p>• Speak with conviction</p>
-              <p>• Eye-line is your anchor</p>
-              <p>• Breathe at the end of points</p>
-            </div>
+              <p>• Lock eyes with the lens</p>
+              <p>• Breathe between points</p>
+              <p>• You are the authority</p>
+            </aside>
           </div>
-          {/* Using our new helper function here */}
-          <button className="exit-btn" onClick={handleEndSession}>END SESSION</button>
+
+          {/* 3. THE BOTTOM CONTROL BAR */}
+          <div className="control-bar">
+            <div className="control-group">
+              <label>Speed</label>
+              <input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} />
+            </div>
+            <div className="control-group">
+              <label>Size</label>
+              <input type="range" min="16" max="60" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} />
+            </div>
+            <div className="control-group">
+              <label>Glass</label>
+              <input type="range" min="0.2" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} />
+            </div>
+            <button className="exit-btn-mini" onClick={handleEndSession}>EXIT</button>
+          </div>
+
         </div>
       )}
 
@@ -95,8 +96,8 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Script Editor</h2>
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="Paste script here..." />
-            <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Accept</button>
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="Paste here..." />
+            <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Save Script</button>
           </div>
         </div>
       )}
