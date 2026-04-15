@@ -2,100 +2,88 @@ import React, { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {
-  // 1. STATE (The App's Memory)
   const [script, setScript] = useState("");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   
-  const scrollSpeed = 2; // Adjust this for faster/slower scroll
+  // NEW: Controls for a better experience
+  const [scrollSpeed, setScrollSpeed] = useState(1); // Default to a slower 1
+  const [fontSize, setFontSize] = useState(32); // Large enough to read easily
 
-  // 2. THE ENGINE (The Scrolling Logic)
-  // This must stay inside the App function so it can "see" isLive and scrollPosition
   useEffect(() => {
     let interval;
     if (isLive) {
       interval = setInterval(() => {
-        setScrollPosition((prev) => prev + scrollSpeed);
-      }, 50);
+        setScrollPosition((prev) => prev + (scrollSpeed * 0.5));
+      }, 30); // Smoother frame rate
     } else {
-      setScrollPosition(0); // Reset scroll to top when we stop
+      setScrollPosition(0);
     }
     return () => clearInterval(interval);
-  }, [isLive]);
+  }, [isLive, scrollSpeed]);
 
   return (
     <div className="app-container">
-      {/* BRANDING HEADER */}
       <header className="header">
         <h1 className="logo">Prompt<span>R</span></h1>
         <p className="tagline">Authority in Every Word.</p>
       </header>
 
-      {/* MAIN CONTENT AREA */}
       {!isLive ? (
-        /* DASHBOARD VIEW (Before you start) */
         <main className="dashboard">
           <div className="stencil-box">
             <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
-              + INSERT TEXT HERE
+              + INSERT SCRIPT HERE
             </button>
-            {script && (
-              <p className="script-status">
-                Script Loaded: {script.substring(0, 20)}...
-              </p>
-            )}
+            {script && <p className="script-status">Ready to Record</p>}
           </div>
-          
-          {script && (
-            <button className="launch-btn" onClick={() => setIsLive(true)}>
-              START PROMPTR MODE
-            </button>
-          )}
+          {script && <button className="launch-btn" onClick={() => setIsLive(true)}>GO LIVE</button>}
         </main>
       ) : (
-        /* TELEPROMPTER VIEW (The "Live" Experience) */
         <div className="teleprompter-view">
+          {/* CONTROL BAR (Presenter Only) */}
+          <div className="control-bar">
+            <div className="control-group">
+              <label>Speed: {scrollSpeed}</label>
+              <input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} />
+            </div>
+            <div className="control-group">
+              <label>Text Size: {fontSize}px</label>
+              <input type="range" min="16" max="60" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} />
+            </div>
+          </div>
+
           <div className="teleprompter-layout">
-            {/* MAIN SCRIPT COLUMN (The 3-5 inch window) */}
             <div className="script-column">
               <div 
                 className="scrolling-text"
-                style={{ transform: `translateY(-${scrollPosition}px)` }}
+                style={{ 
+                  transform: `translateY(-${scrollPosition}px)`,
+                  fontSize: `${fontSize}px` 
+                }}
               >
                 {script}
               </div>
             </div>
 
-            {/* PRESENTER NOTES COLUMN (Sidepanel) */}
             <div className="notes-column">
-              <h3>Clinical Notes</h3>
-              <p>• Maintain eye contact with the lens</p>
-              <p>• Pause for emphasis on key steps</p>
-              <p>• Project confidence and authority</p>
+              <h3>Presenter Notes</h3>
+              <p>• Speak slowly</p>
+              <p>• Watch the camera lens</p>
+              <p>• Breathe</p>
             </div>
           </div>
-          <button className="exit-btn" onClick={() => setIsLive(false)}>
-            END SESSION
-          </button>
+          <button className="exit-btn" onClick={() => setIsLive(false)}>END</button>
         </div>
       )}
 
-      {/* THE POP-UP EDITOR */}
       {isEditorOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Script Editor</h2>
-            <textarea 
-              placeholder="Paste your medical lecture or notes here..."
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-            />
-            <div className="modal-actions">
-              <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>
-                Accept & Close
-              </button>
-            </div>
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} />
+            <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Accept</button>
           </div>
         </div>
       )}
