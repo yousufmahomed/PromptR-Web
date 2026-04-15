@@ -1,0 +1,79 @@
+:root {
+  --bg-dark: #000b14;
+  --blueprint-blue: #002b4d;
+  --cyan-glow: #00d1ff;
+  --text-main: #e0f7ff;
+}
+
+.app-container {
+  min-height: 100vh;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Courier New', Courier, monospace; /* For that professor/blueprint feel */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+}
+
+.logo {
+  font-size: 3rem;
+  color: var(--cyan-glow);
+  letter-spacing: 4px;
+}
+
+.logo span {
+  font-size: 4rem;
+  border: 2px solid var(--cyan-glow);
+  padding: 0 10px;
+}
+
+.stencil-box {
+  margin-top: 50px;
+  border: 1px dashed var(--cyan-glow);
+  padding: 60px;
+  background: rgba(0, 43, 77, 0.3);
+}
+
+.large-insert-btn {
+  background: transparent;
+  border: 2px solid var(--cyan-glow);
+  color: var(--cyan-glow);
+  padding: 20px 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.large-insert-btn:hover {
+  background: var(--cyan-glow);
+  color: var(--bg-dark);
+}
+
+/* MODAL STYLES */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: var(--blueprint-blue);
+  padding: 30px;
+  border: 2px solid var(--cyan-glow);
+  width: 80%;
+  max-width: 600px;
+}
+
+textarea {
+  width: 100%;
+  height: 300px;
+  background: #001a33;
+  color: white;
+  border: 1px solid var(--cyan-glow);
+  padding: 15px;
+  font-size: 1.1rem;
+}
