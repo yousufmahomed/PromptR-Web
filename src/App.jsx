@@ -7,22 +7,26 @@ function App() {
   const [isLive, setIsLive] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   
-  // PRO CONTROLS
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(32);
-  const [opacity, setOpacity] = useState(0.8); // 0 to 1 for transparency
+  const [opacity, setOpacity] = useState(0.8);
 
+  // THE ENGINE: No more setState in the 'else' block
   useEffect(() => {
     let interval;
     if (isLive) {
       interval = setInterval(() => {
         setScrollPosition((prev) => prev + (scrollSpeed * 0.5));
       }, 30);
-    } else {
-      setScrollPosition(0);
     }
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed]);
+
+  // A helper function to close out safely
+  const handleEndSession = () => {
+    setIsLive(false);
+    setScrollPosition(0); // We reset the scroll here instead!
+  };
 
   return (
     <div className="app-container">
@@ -60,7 +64,6 @@ function App() {
 
           <div className="teleprompter-layout">
             <div className="script-column" style={{ backgroundColor: `rgba(0, 11, 20, ${opacity})` }}>
-              {/* THE EYE-LINE INDICATOR */}
               <div className="eye-line"></div>
               
               <div 
@@ -70,10 +73,9 @@ function App() {
                   fontSize: `${fontSize}px` 
                 }}
               >
-                {/* Adding some empty space at top so the first line starts at the eye-line */}
-                <div style={{ height: '150px' }}></div>
+                <div style={{ height: '20px' }}></div>
                 {script}
-                <div style={{ height: '400px' }}></div>
+                <div style={{ height: '500px' }}></div>
               </div>
             </div>
 
@@ -84,7 +86,8 @@ function App() {
               <p>• Breathe at the end of points</p>
             </div>
           </div>
-          <button className="exit-btn" onClick={() => setIsLive(false)}>END SESSION</button>
+          {/* Using our new helper function here */}
+          <button className="exit-btn" onClick={handleEndSession}>END SESSION</button>
         </div>
       )}
 
@@ -92,7 +95,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Script Editor</h2>
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} />
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="Paste script here..." />
             <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Accept</button>
           </div>
         </div>

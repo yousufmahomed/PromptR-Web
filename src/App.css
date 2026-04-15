@@ -9,23 +9,29 @@
   min-height: 100vh;
   background-color: var(--bg-dark);
   color: var(--text-main);
-  font-family: 'Courier New', Courier, monospace; /* For that professor/blueprint feel */
+  font-family: 'Courier New', Courier, monospace;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
+  padding: 20px;
 }
 
 .logo {
   font-size: 3rem;
   color: var(--cyan-glow);
   letter-spacing: 4px;
+  margin-bottom: 5px;
 }
 
 .logo span {
-  font-size: 4rem;
+  font-size: 3.5rem;
   border: 2px solid var(--cyan-glow);
   padding: 0 10px;
+}
+
+.tagline {
+  margin-bottom: 20px;
+  opacity: 0.8;
 }
 
 .stencil-box {
@@ -33,6 +39,7 @@
   border: 1px dashed var(--cyan-glow);
   padding: 60px;
   background: rgba(0, 43, 77, 0.3);
+  text-align: center;
 }
 
 .large-insert-btn {
@@ -42,111 +49,112 @@
   padding: 20px 40px;
   font-size: 1.5rem;
   cursor: pointer;
-  transition: 0.3s;
 }
 
-.large-insert-btn:hover {
+.launch-btn {
+  margin-top: 20px;
   background: var(--cyan-glow);
   color: var(--bg-dark);
+  padding: 15px 30px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
 }
 
-/* MODAL STYLES */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background: var(--blueprint-blue);
-  padding: 30px;
-  border: 2px solid var(--cyan-glow);
-  width: 80%;
-  max-width: 600px;
-}
-
-textarea {
-  width: 100%;
-  height: 300px;
-  background: #001a33;
-  color: white;
-  border: 1px solid var(--cyan-glow);
-  padding: 15px;
-  font-size: 1.1rem;
-}
-/* Fixes the "Too Wide" issue */
-.script-column {
-  width: 450px; /* This is roughly 4-5 inches depending on screen size */
-  max-width: 90vw; 
-  height: 60vh; /* Limits the height so it doesn't take over the whole screen */
-  border: 2px solid var(--cyan-glow);
-  background: rgba(0, 10, 20, 0.9);
-  overflow: hidden; /* This hides the text until it scrolls into the box */
-  margin: 0 auto;   /* Centers it */
-  position: relative;
-}
-
-.scrolling-text {
-  padding: 20px;
-  white-space: pre-wrap; /* Crucial: Keeps your paragraph breaks! */
-  text-align: center;    /* Keeps eyes centered on the lens */
-  line-height: 1.5;
-}
-
-/* Styling for our new Sliders */
-.control-bar {
-  display: flex;
-  gap: 30px;
-  background: var(--blueprint-blue);
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  border: 1px solid var(--cyan-glow);
-}
-
-.control-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-/* THE GLOWING EYE-LINE (The Anchor) */
+/* THE FOCUS ZONE (EYE-LINE) AT 10% */
 .eye-line {
   position: absolute;
-  top: 50%; /* Centers it in the window */
+  top: 10%; 
   left: 0;
   width: 100%;
-  height: 50px; /* A comfortable "reading zone" */
-  background: rgba(0, 209, 255, 0.15); /* Soft cyan glow */
+  height: 50px;
+  background: rgba(0, 209, 255, 0.2);
   border-top: 2px solid var(--cyan-glow);
   border-bottom: 2px solid var(--cyan-glow);
-  box-shadow: 0 0 20px rgba(0, 209, 255, 0.5);
-  z-index: 10; /* Ensures it sits on top of the moving text */
-  pointer-events: none; /* Allows you to click through it if needed */
+  box-shadow: 0 0 25px rgba(0, 209, 255, 0.6);
+  z-index: 10;
+  pointer-events: none;
   transform: translateY(-50%);
 }
 
-/* Ensure the column is set up to hold the line */
 .script-column {
-  position: relative; /* CRITICAL: This "traps" the eye-line inside the box */
-  width: 450px;
-  height: 60vh;
+  position: relative;
+  width: 480px;
+  height: 70vh;
   background-color: #000b14;
   border: 2px solid var(--cyan-glow);
   overflow: hidden;
   margin: 0 auto;
-  border-radius: 8px;
 }
 
-/* Extra smooth scrolling styling */
 .scrolling-text {
   padding: 0 40px;
   white-space: pre-wrap;
   text-align: center;
   line-height: 1.8;
   color: #ffffff;
-  transition: transform 0.1s linear;
+}
+
+.control-bar {
+  display: flex;
+  gap: 20px;
+  background: var(--blueprint-blue);
+  padding: 10px 20px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border: 1px solid var(--cyan-glow);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  align-items: center;
+}
+
+.teleprompter-layout {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.notes-column {
+  width: 220px;
+  border-left: 2px solid var(--cyan-glow);
+  padding-left: 15px;
+  color: #ffcc00;
+  font-size: 0.9rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background: var(--blueprint-blue);
+  padding: 30px;
+  border: 2px solid var(--cyan-glow);
+  width: 90%;
+  max-width: 600px;
+}
+
+textarea {
+  width: 100%;
+  height: 350px;
+  background: #001a33;
+  color: white;
+  border: 1px solid var(--cyan-glow);
+  padding: 10px;
+}
+
+.accept-btn, .exit-btn {
+  margin-top: 15px;
+  padding: 10px 20px;
+  cursor: pointer;
 }
