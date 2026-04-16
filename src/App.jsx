@@ -12,10 +12,7 @@ function App() {
   const [fontSize, setFontSize] = useState(45);
   const [opacity, setOpacity] = useState(0.6);
   
-  // NEW: PAUSE STATE
   const [isPaused, setIsPaused] = useState(false);
-
-  // STUDIO STATES
   const [isRecording, setIsRecording] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
@@ -29,7 +26,7 @@ function App() {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // UNIVERSAL STUDIO FEED
+  // WEBCAM & MIC INITIALIZATION
   useEffect(() => {
     let stream = null;
     if (isLive) {
@@ -66,12 +63,12 @@ function App() {
     };
   }, [isLive]);
 
-  // NEW: KEYBOARD LISTENER (Spacebar & Enter)
+  // ROBUST KEYBOARD PAUSE (Spacebar & Enter)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Only pause if we are Live, and NOT typing in the script editor
-      if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault(); // Stops the spacebar from scrolling the whole webpage down
+      // Prevent pausing if user is typing in the textarea or adjusting a slider
+      if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+        e.preventDefault(); // Stops the page from scrolling down
         setIsPaused((prev) => !prev);
       }
     };
@@ -79,7 +76,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLive]);
 
-  // SCROLL ENGINE (Now respects the isPaused clutch)
+  // SCROLL ENGINE (Respects Pause)
   useEffect(() => {
     let interval;
     if (isLive && !isPaused) {
@@ -90,6 +87,7 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused]);
 
+  // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
     const stream = videoRef.current.srcObject;
@@ -117,6 +115,10 @@ function App() {
     a.href = url;
     a.download = `PromptR-Session-${new Date().getTime()}.webm`;
     a.click();
+    
+    // NOTIFICATION SO YOU KNOW WHERE IT WENT
+    alert("Success! Your video has been saved to your computer's 'Downloads' folder.");
+    
     URL.revokeObjectURL(url);
   };
 
@@ -125,7 +127,7 @@ function App() {
     setIsMeetingMode(false);
     setScrollPosition(0);
     setIsRecording(false);
-    setIsPaused(false); // Reset pause state
+    setIsPaused(false);
   };
 
   return (
@@ -160,7 +162,6 @@ function App() {
             <div className="script-column" style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
               <div className="eye-line"></div>
               
-              {/* PAUSED WATERMARK */}
               {isPaused && <div className="paused-watermark">PAUSED</div>}
 
               <div 
@@ -179,27 +180,29 @@ function App() {
           </div>
 
           <div className="control-bar">
+            {/* RECORD AND PAUSE ARE NOW GROUPED TOGETHER */}
             <div className="studio-module">
-              <div className="mic-monitor">
-                <span className="mic-icon">🎤</span>
-                <div className="mic-bar-bg">
-                  <div className="mic-bar-fill" style={{ width: `${Math.min(micLevel * 1.5, 100)}%`, backgroundColor: micLevel > 60 ? '#ffcc00' : '#34a853' }}></div>
-                </div>
-              </div>
-              
+              <button 
+                className={`pause-btn ${isPaused ? 'active' : ''}`} 
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
+              </button>
+
               {!isRecording ? (
                 <button className="rec-btn start" onClick={startRecording}>● RECORD</button>
               ) : (
                 <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
               )}
+              
+              <div className="mic-monitor">
+                <div className="mic-bar-bg">
+                  <div className="mic-bar-fill" style={{ width: `${Math.min(micLevel * 1.5, 100)}%`, backgroundColor: micLevel > 60 ? '#ffcc00' : '#34a853' }}></div>
+                </div>
+              </div>
             </div>
 
             <div className="settings-module">
-              {/* NEW PAUSE BUTTON FOR TOUCHSCREENS */}
-              <button className="pause-toggle-btn" onClick={() => setIsPaused(!isPaused)}>
-                {isPaused ? "▶ PLAY" : "⏸ PAUSE"}
-              </button>
-
               <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
               <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
               <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
