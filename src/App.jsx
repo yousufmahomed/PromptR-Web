@@ -17,8 +17,10 @@ function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
   
+  // NEW: Store BOTH streams in state so React can safely react to them
+  const [webcamStream, setWebcamStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
-  const [webcamSize, setWebcamSize] = useState("large"); // 'small', 'medium', 'large'
+  const [webcamSize, setWebcamSize] = useState("large"); 
   
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
@@ -36,14 +38,14 @@ function App() {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // WEBCAM & MIC INITIALIZATION
+  // 1. FETCH WEBCAM & MIC
   useEffect(() => {
     let stream = null;
     if (isLive) {
       async function enableStream() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          if (videoRef.current) videoRef.current.srcObject = stream;
+          setWebcamStream(stream); // SAVE TO STATE INSTEAD OF DIRECTLY ATTACHING
 
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioCtx;
@@ -67,10 +69,27 @@ function App() {
     }
     return () => {
       if (stream) stream.getTracks().forEach(track => track.stop());
+      setWebcamStream(null);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (audioContextRef.current) audioContextRef.current.close();
     };
   }, [isLive]);
+
+  // 2. SAFELY BIND WEBCAM TO VIDEO ELEMENT
+  // This hook runs every time the webcamStream, layout, or isLive state changes.
+  // It guarantees the video element is ready before attaching the feed.
+  useEffect(() => {
+    if (videoRef.current && webcamStream) {
+      videoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream, isLive, screenStream, webcamSize]);
+
+  // 3. SAFELY BIND SCREEN SHARE TO VIDEO ELEMENT
+  useEffect(() => {
+    if (screenRef.current && screenStream) {
+      screenRef.current.srcObject = screenStream;
+    }
+  }, [screenStream]);
 
   // ROBUST KEYBOARD PAUSE
   useEffect(() => {
@@ -103,8 +122,7 @@ function App() {
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        setScreenStream(stream);
-        if (screenRef.current) screenRef.current.srcObject = stream;
+        setScreenStream(stream); // Just set the state, the useEffect above handles the HTML element!
         stream.getVideoTracks()[0].onended = () => setScreenStream(null);
       } catch (err) { console.error("Screen share denied", err); }
     }
@@ -113,9 +131,8 @@ function App() {
   // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
-    const streamToRecord = videoRef.current.srcObject; 
-    if (!streamToRecord) return alert("Camera not detected.");
-    mediaRecorderRef.current = new MediaRecorder(streamToRecord, { mimeType: 'video/webm;codecs=vp9,opus' });
+    if (!webcamStream) return alert("Camera not detected.");
+    mediaRecorderRef.current = new MediaRecorder(webcamStream, { mimeType: 'video/webm;codecs=vp9,opus' });
     mediaRecorderRef.current.ondataavailable = (e) => {
       if (e.data.size > 0) setRecordedChunks((prev) => [...prev, e.data]);
     };
@@ -163,7 +180,6 @@ function App() {
     setAiMessages(newMessages);
     setAiInput("");
 
-    // Simulate AI thinking and responding
     setTimeout(() => {
       if (newMessages[newMessages.length - 1].text.toLowerCase().includes("rewrite")) {
         setScript(prev => `[AI REWRITTEN SCRIPT]\n\n${prev}\n\n(This is a smoother, more engaging version of your previous text!)`);
