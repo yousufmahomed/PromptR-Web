@@ -8,7 +8,7 @@ function App() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(45);
-  const [opacity, setOpacity] = useState(0.85);
+  const [opacity, setOpacity] = useState(0.6); // Default to a nice 'Glass' level
   const [isMeetingMode, setIsMeetingMode] = useState(false);
   
   const videoRef = useRef(null);
@@ -24,12 +24,8 @@ function App() {
       async function enableStream() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } catch (err) {
-          console.error("Camera access denied", err);
-        }
+          if (videoRef.current) videoRef.current.srcObject = stream;
+        } catch (err) { console.error("Camera access denied", err); }
       }
       enableStream();
     }
@@ -57,7 +53,6 @@ function App() {
         </header>
       )}
 
-      {/* WEBCAM LAYER */}
       {isLive && isMeetingMode && (
         <video ref={videoRef} autoPlay playsInline muted className="webcam-feed" />
       )}
@@ -79,10 +74,20 @@ function App() {
       ) : (
         <div className="teleprompter-view">
           <div className="teleprompter-main-layout">
-            <div className="script-column" style={{ backgroundColor: isMeetingMode ? `rgba(0, 0, 0, ${opacity})` : `rgba(0, 11, 20, 1)` }}>
+            <div 
+              className="script-column" 
+              style={{ backgroundColor: `rgba(0, 0, 0, ${isMeetingMode ? opacity : 1})` }}
+            >
               <div className="eye-line"></div>
-              <div className="scrolling-text" style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px` }}>
-                <div style={{ height: '10vh' }}></div>
+              <div 
+                className="scrolling-text" 
+                style={{ 
+                  transform: `translateY(-${scrollPosition}px)`, 
+                  fontSize: `${fontSize}px`,
+                  textShadow: '2px 2px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.8)' // THE FIX: High contrast
+                }}
+              >
+                <div style={{ height: '12vh' }}></div> {/* Buffer to align with eye-line */}
                 {script}
                 <div style={{ height: '80vh' }}></div>
               </div>
@@ -92,7 +97,7 @@ function App() {
           <div className="control-bar">
             <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
             <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
-            <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
+            <div className="control-group"><label>Glass (Darkness)</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
             <button className="exit-btn-mini" onClick={() => { setIsLive(false); setIsMeetingMode(false); setScrollPosition(0); }}>EXIT</button>
           </div>
         </div>
@@ -101,10 +106,10 @@ function App() {
       {isEditorOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="Paste your notes here..." />
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} />
             <div className="modal-actions">
               <button className="clear-btn" onClick={() => setScript("")}>Clear</button>
-              <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Save & Close</button>
+              <button className="accept-btn" onClick={() => setIsEditorOpen(false)}>Save</button>
             </div>
           </div>
         </div>
