@@ -18,9 +18,8 @@ function App() {
   const [recordedChunks, setRecordedChunks] = useState([]);
   
   const [screenStream, setScreenStream] = useState(null);
-  
-  // NEW: Presenter Size & AI States
   const [webcamSize, setWebcamSize] = useState("large"); // 'small', 'medium', 'large'
+  
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiMessages, setAiMessages] = useState([
@@ -138,7 +137,7 @@ function App() {
     a.href = url;
     a.download = `PromptR-Session-${new Date().getTime()}.webm`;
     a.click();
-    alert("Video saved to Downloads.");
+    alert("Success! Your video has been saved to your computer's 'Downloads' folder.");
     URL.revokeObjectURL(url);
   };
 
@@ -184,16 +183,13 @@ function App() {
         </header>
       )}
 
-      {/* MEDIA FEEDS (Locked behind UI) */}
+      {/* BACKGROUND WEBCAM FEED */}
       {isLive && (
-        <div className="media-container">
-          {screenStream && <video ref={screenRef} autoPlay playsInline muted className="screen-share-feed" />}
-          <video 
-            ref={videoRef} 
-            autoPlay playsInline muted 
-            className={`webcam-feed ${screenStream ? 'pip-mode' : `size-${webcamSize}`}`} 
-          />
-        </div>
+        <video 
+          ref={videoRef} 
+          autoPlay playsInline muted 
+          className={`webcam-feed ${screenStream ? 'pip-mode' : `size-${webcamSize}`}`} 
+        />
       )}
 
       {isRecording && <div className="rec-pulse">REC</div>}
@@ -214,7 +210,17 @@ function App() {
         </main>
       ) : (
         <div className="teleprompter-view">
-          <div className="teleprompter-main-layout">
+          
+          <div className={`teleprompter-main-layout ${screenStream ? 'has-screen-share' : ''}`}>
+            
+            {/* DOCKED SCREEN SHARE SIDEBAR */}
+            {screenStream && (
+              <div className="screen-share-sidebar">
+                <div className="sidebar-label">● LIVE SHARE</div>
+                <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
+              </div>
+            )}
+
             <div className="script-column" style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
               <div className="eye-line"></div>
               {isPaused && <div className="paused-watermark">PAUSED</div>}
