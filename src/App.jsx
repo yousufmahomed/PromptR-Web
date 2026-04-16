@@ -17,11 +17,18 @@ function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
   
-  // NEW: Screen share state
   const [screenStream, setScreenStream] = useState(null);
   
+  // NEW: Presenter Size & AI States
+  const [webcamSize, setWebcamSize] = useState("large"); // 'small', 'medium', 'large'
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiMessages, setAiMessages] = useState([
+    { role: 'system', text: "Hi! I'm PromptR AI. Need help using the app, or want me to rewrite your script?" }
+  ]);
+
   const videoRef = useRef(null);
-  const screenRef = useRef(null); // NEW: Ref for screen share video element
+  const screenRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
@@ -55,7 +62,6 @@ function App() {
             animationRef.current = requestAnimationFrame(updateMic);
           };
           updateMic();
-
         } catch (err) { console.error("Camera/Mic access denied", err); }
       }
       enableStream();
@@ -67,7 +73,7 @@ function App() {
     };
   }, [isLive]);
 
-  // ROBUST KEYBOARD PAUSE (Spacebar & Enter)
+  // ROBUST KEYBOARD PAUSE
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
@@ -79,7 +85,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLive]);
 
-  // SCROLL ENGINE (Respects Pause)
+  // SCROLL ENGINE
   useEffect(() => {
     let interval;
     if (isLive && !isPaused) {
@@ -90,39 +96,26 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused]);
 
-  // --- NEW: SCREEN SHARE ENGINE ---
+  // SCREEN SHARE ENGINE
   const toggleScreenShare = async () => {
     if (screenStream) {
-      // Stop sharing
       screenStream.getTracks().forEach(track => track.stop());
       setScreenStream(null);
     } else {
-      // Start sharing
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         setScreenStream(stream);
         if (screenRef.current) screenRef.current.srcObject = stream;
-
-        // Handle user stopping share via the browser's native "Stop Sharing" floating button
-        stream.getVideoTracks()[0].onended = () => {
-          setScreenStream(null);
-        };
-      } catch (err) {
-        console.error("Screen share denied or cancelled", err);
-      }
+        stream.getVideoTracks()[0].onended = () => setScreenStream(null);
+      } catch (err) { console.error("Screen share denied", err); }
     }
   };
 
   // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
-    
-    // Optional upgrade: You can switch this to record the screenStream if it exists, 
-    // but for now, we will record the primary webcam feed.
     const streamToRecord = videoRef.current.srcObject; 
-    
-    if (!streamToRecord) return alert("Camera/Mic not detected.");
-    
+    if (!streamToRecord) return alert("Camera not detected.");
     mediaRecorderRef.current = new MediaRecorder(streamToRecord, { mimeType: 'video/webm;codecs=vp9,opus' });
     mediaRecorderRef.current.ondataavailable = (e) => {
       if (e.data.size > 0) setRecordedChunks((prev) => [...prev, e.data]);
@@ -145,8 +138,7 @@ function App() {
     a.href = url;
     a.download = `PromptR-Session-${new Date().getTime()}.webm`;
     a.click();
-    
-    alert("Success! Your video has been saved to your computer's 'Downloads' folder.");
+    alert("Video saved to Downloads.");
     URL.revokeObjectURL(url);
   };
 
@@ -156,10 +148,31 @@ function App() {
     setScrollPosition(0);
     setIsRecording(false);
     setIsPaused(false);
+    setIsAiOpen(false);
     if (screenStream) {
       screenStream.getTracks().forEach(track => track.stop());
       setScreenStream(null);
     }
+  };
+
+  // MOCK AI ENGINE
+  const handleAiSubmit = (e) => {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+    
+    const newMessages = [...aiMessages, { role: 'user', text: aiInput }];
+    setAiMessages(newMessages);
+    setAiInput("");
+
+    // Simulate AI thinking and responding
+    setTimeout(() => {
+      if (newMessages[newMessages.length - 1].text.toLowerCase().includes("rewrite")) {
+        setScript(prev => `[AI REWRITTEN SCRIPT]\n\n${prev}\n\n(This is a smoother, more engaging version of your previous text!)`);
+        setAiMessages(prev => [...prev, { role: 'system', text: "I've updated your script! Let me know if you need any other tweaks." }]);
+      } else {
+        setAiMessages(prev => [...prev, { role: 'system', text: "I am a demo AI right now! Connect me to an API and I'll be fully functional." }]);
+      }
+    }, 1200);
   };
 
   return (
@@ -171,21 +184,14 @@ function App() {
         </header>
       )}
 
-      {/* --- MEDIA FEEDS --- */}
+      {/* MEDIA FEEDS (Locked behind UI) */}
       {isLive && (
         <div className="media-container">
-          {/* If screen sharing is active, the screen share becomes the background */}
-          {screenStream && (
-            <video ref={screenRef} autoPlay playsInline muted className="screen-share-feed" />
-          )}
-          
-          {/* The webcam feed shrinks to a PiP window if screen sharing is active */}
+          {screenStream && <video ref={screenRef} autoPlay playsInline muted className="screen-share-feed" />}
           <video 
             ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className={`webcam-feed ${screenStream ? 'pip-mode' : 'fullscreen-mode'}`} 
+            autoPlay playsInline muted 
+            className={`webcam-feed ${screenStream ? 'pip-mode' : `size-${webcamSize}`}`} 
           />
         </div>
       )}
@@ -211,17 +217,8 @@ function App() {
           <div className="teleprompter-main-layout">
             <div className="script-column" style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
               <div className="eye-line"></div>
-              
               {isPaused && <div className="paused-watermark">PAUSED</div>}
-
-              <div 
-                className="scrolling-text" 
-                style={{ 
-                  transform: `translateY(-${scrollPosition}px)`, 
-                  fontSize: `${fontSize}px`,
-                  textShadow: '2px 2px 4px rgba(0,0,0,1)'
-                }}
-              >
+              <div className="scrolling-text" style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px`, textShadow: '2px 2px 4px rgba(0,0,0,1)' }}>
                 <div style={{ height: '12vh' }}></div>
                 {script}
                 <div style={{ height: '80vh' }}></div>
@@ -229,31 +226,41 @@ function App() {
             </div>
           </div>
 
+          {/* AI FLOATING BUTTON & PANEL */}
+          <button className="ai-fab" onClick={() => setIsAiOpen(!isAiOpen)}>✨ AI</button>
+          
+          <div className={`ai-panel ${isAiOpen ? 'open' : ''}`}>
+            <div className="ai-header">
+              <h3>PromptR AI</h3>
+              <button onClick={() => setIsAiOpen(false)}>×</button>
+            </div>
+            <div className="ai-chat-window">
+              {aiMessages.map((msg, i) => (
+                <div key={i} className={`ai-message ${msg.role}`}>{msg.text}</div>
+              ))}
+            </div>
+            <form onSubmit={handleAiSubmit} className="ai-input-area">
+              <input type="text" value={aiInput} onChange={(e)=>setAiInput(e.target.value)} placeholder="e.g. Rewrite my script..." />
+              <button type="submit">↑</button>
+            </form>
+          </div>
+
           <div className="control-bar">
             <div className="studio-module">
-              <button 
-                className={`pause-btn ${isPaused ? 'active' : ''}`} 
-                onClick={() => setIsPaused(!isPaused)}
-              >
+              <button className={`pause-btn ${isPaused ? 'active' : ''}`} onClick={() => setIsPaused(!isPaused)}>
                 {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
               </button>
 
-              {/* NEW: Screen Share Button */}
               <button className={`share-btn ${screenStream ? 'active' : ''}`} onClick={toggleScreenShare}>
                 {screenStream ? "⏹ STOP SHARE" : "🖥 SHARE SCREEN"}
               </button>
 
-              {/* NEW: Hide local record button if in Meeting Mode (Fathom handles it) */}
-              {!isMeetingMode && (
-                !isRecording ? (
-                  <button className="rec-btn start" onClick={startRecording}>● RECORD</button>
-                ) : (
-                  <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
-                )
-              )}
-              {isMeetingMode && (
-                 <div className="fathom-notice" style={{fontSize: '12px', color: '#888'}}>
-                    Fathom Active
+              {!isMeetingMode ? (
+                !isRecording ? <button className="rec-btn start" onClick={startRecording}>● RECORD</button> 
+                             : <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
+              ) : (
+                 <div className="fathom-notice">
+                    <span className="fathom-pulse"></span> Fathom Active
                  </div>
               )}
               
@@ -265,6 +272,14 @@ function App() {
             </div>
 
             <div className="settings-module">
+              <div className="control-group">
+                <label>Cam Size</label>
+                <select className="ui-select" value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Full</option>
+                </select>
+              </div>
               <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
               <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
               <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>

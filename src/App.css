@@ -106,3 +106,156 @@ body { margin: 0; background: #000; overflow: hidden; font-family: 'Inter', sans
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: #002b4d; padding: 30px; border-radius: 20px; width: 85%; max-width: 650px; border: 1px solid var(--cyan-glow); }
 textarea { width: 100%; height: 350px; background: #000; color: #fff; padding: 20px; border-radius: 12px; font-size: 1.1rem; border: 1px solid rgba(0,209,255,0.2); resize: none; box-sizing: border-box; }
+/* --- CAM SIZING CLASSES (Standard Mode) --- */
+.webcam-feed.size-large {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(60%);
+}
+
+.webcam-feed.size-medium {
+  width: 60vw;
+  height: 60vh;
+  object-fit: cover;
+  border-radius: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  filter: brightness(100%);
+}
+
+.webcam-feed.size-small {
+  width: 30vw;
+  height: 30vh;
+  object-fit: cover;
+  border-radius: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  filter: brightness(100%);
+}
+
+.ui-select {
+  background: transparent;
+  color: var(--cyan-glow);
+  border: 1px solid var(--cyan-glow);
+  border-radius: 5px;
+  padding: 3px;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.ui-select option {
+  background: var(--bg-dark);
+  color: white;
+}
+
+/* --- FATHOM ACTIVE PULSE --- */
+.fathom-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #34a853;
+  border: 1px solid #34a853;
+  padding: 8px 15px;
+  border-radius: 20px;
+  background: rgba(52, 168, 83, 0.1);
+}
+
+.fathom-pulse {
+  width: 10px;
+  height: 10px;
+  background-color: var(--rec-red);
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+/* --- AI ASSISTANT CHAT UI --- */
+.ai-fab {
+  position: fixed;
+  top: 30px;
+  right: 40px;
+  background: linear-gradient(135deg, #b366ff, var(--cyan-glow));
+  color: black;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 20px;
+  font-weight: 900;
+  cursor: pointer;
+  z-index: 500;
+  box-shadow: 0 4px 15px rgba(0,209,255,0.4);
+  transition: transform 0.2s;
+}
+.ai-fab:hover { transform: scale(1.05); }
+
+.ai-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 350px;
+  height: 100vh;
+  background: #001224;
+  border-left: 1px solid var(--cyan-glow);
+  z-index: 600;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+}
+.ai-panel.open { right: 0; }
+
+.ai-header {
+  padding: 20px;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.ai-header h3 { margin: 0; color: white; }
+.ai-header button { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+.ai-chat-window {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.ai-message { padding: 10px 15px; border-radius: 12px; font-size: 0.9rem; max-width: 85%; line-height: 1.4; }
+.ai-message.system { background: rgba(0,209,255,0.1); color: var(--cyan-glow); align-self: flex-start; border-bottom-left-radius: 0; }
+.ai-message.user { background: #333; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+
+.ai-input-area {
+  padding: 20px;
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.ai-input-area input {
+  flex: 1;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 10px 15px;
+  color: white;
+  outline: none;
+}
+.ai-input-area button {
+  background: var(--cyan-glow);
+  color: black;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-weight: bold;
+  cursor: pointer;
+}
