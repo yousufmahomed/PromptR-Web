@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 
 function App() {
@@ -22,24 +22,31 @@ function App() {
   const [webcamSize, setWebcamSize] = useState("large"); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
-  const [aiInput, setAiInput] = useState("");
-  const [aiMessages, setAiMessages] = useState([{ role: 'system', text: "Ready to assist, Captain." }]);
 
-  const videoRef = useRef(null);
   const screenRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // Hardware Management - Camera & Mic
+  // --- CAMERA ATTACHMENT LOGIC ---
+  // Using a callback ref ensures that the stream is attached 
+  // the VERY INSTANT the video element is created in the DOM.
+  const webcamRef = useCallback((node) => {
+    if (node !== null && webcamStream) {
+      node.srcObject = webcamStream;
+      node.play().catch(e => console.error("Video play failed:", e));
+    }
+  }, [webcamStream, isMeetingMode, isPrompterHidden, webcamSize]);
+
+  // --- HARDWARE INITIALIZATION ---
   useEffect(() => {
     let stream = null;
     if (isLive) {
-      async function enableStream() {
+      async function startCamera() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: 1280, height: 720 }, 
+            video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
             audio: true 
           });
           setWebcamStream(stream);
@@ -60,11 +67,11 @@ function App() {
           };
           updateMic();
         } catch (err) { 
-          console.error("Webcam Error:", err);
-          alert("Could not access webcam.");
+          console.error("Hardware Error:", err);
+          alert("Camera access failed. Ensure no other apps (Zoom/Teams) are using it.");
         }
       }
-      enableStream();
+      startCamera();
     }
     return () => {
       if (stream) stream.getTracks().forEach(t => t.stop());
@@ -72,25 +79,10 @@ function App() {
     };
   }, [isLive]);
 
-  // STRICT VIDEO ASSIGNMENT
+  // Screen Share Assignment
   useEffect(() => {
-    if (videoRef.current) {
-        // We ONLY ever want the webcam stream here. 
-        // If we stop being live or the stream is null, we clear it.
-        videoRef.current.srcObject = isLive ? webcamStream : null;
-        if (isLive && webcamStream) {
-            videoRef.current.play().catch(() => {});
-        }
-    }
-  }, [webcamStream, isLive, isMeetingMode, isPrompterHidden, webcamSize]);
-
-  useEffect(() => {
-    if (screenRef.current) {
-        // This element ONLY gets the screen stream.
-        screenRef.current.srcObject = screenStream || null;
-        if (screenStream) {
-            screenRef.current.play().catch(() => {});
-        }
+    if (screenRef.current && screenStream) {
+      screenRef.current.srcObject = screenStream;
     }
   }, [screenStream]);
 
@@ -113,7 +105,6 @@ function App() {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
-        // If user stops sharing via browser bar
         stream.getVideoTracks()[0].onended = () => setScreenStream(null);
       } catch (err) { console.error(err); }
     }
@@ -143,22 +134,23 @@ function App() {
     setIsLive(false);
     setIsMeetingMode(false);
     setIsPrompterHidden(false);
-    setIsSettingsOpen(false);
     setIsPaused(false);
     setScrollPosition(0);
   };
 
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
+      
       {!isLive && (
         <header className="header">
           <h1 className="logo">Prompt<span>R</span></h1>
         </header>
       )}
 
+      {/* WEBCAM LAYER */}
       {isLive && (
         <video 
-          ref={videoRef} 
+          ref={webcamRef} 
           autoPlay 
           playsInline 
           muted 
@@ -182,12 +174,15 @@ function App() {
       ) : (
         <div className="teleprompter-view">
           <div className={`teleprompter-main-layout ${isPrompterHidden ? 'no-prompter' : ''}`}>
+            
+            {/* SCREEN SHARE DOCK */}
             {screenStream && (
               <div className="screen-share-sidebar">
                 <div className="sidebar-label">● LIVE SHARE</div>
                 <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
               </div>
             )}
+
             {!isPrompterHidden && (
               <div className="script-column" style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
                 <div className="eye-line"></div>
@@ -200,27 +195,22 @@ function App() {
           </div>
 
           <button className="ai-fab" onClick={() => setIsAiOpen(!isAiOpen)}>✨ AI</button>
-          <div className={`ai-panel ${isAiOpen ? 'open' : ''}`}>
-            <div className="ai-header"><h3>PromptR AI</h3><button onClick={() => setIsAiOpen(false)}>×</button></div>
-            <div className="ai-chat-window">{aiMessages.map((m, i) => <div key={i} className={`ai-message ${m.role}`}>{m.text}</div>)}</div>
-          </div>
-
+          
           <div className="control-bar-wrapper">
             <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
-              <div className="control-group"><label>Cam Size</label>
+              <div className="control-group">
+                <label>Cam Size</label>
                 <select className="ui-select" value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
                   <option value="small">Small</option><option value="medium">Medium</option><option value="large">Full</option>
                 </select>
               </div>
               <div className="control-group"><label>Speed</label><input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} /></div>
-              <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(e.target.value)} /></div>
             </div>
 
             <div className="control-bar">
               <button className="action-btn" onClick={() => setIsPaused(!isPaused)}>{isPaused ? "▶" : "⏸"}</button>
               <button className="action-btn" onClick={toggleScreenShare}>🖥</button>
               {!isMeetingMode && <button className={`action-btn rec ${isRecording ? 'active' : ''}`} onClick={isRecording ? () => setIsRecording(false) : startRecording}>●</button>}
-              {isMeetingMode && <div className="fathom-notice"><span className="fathom-pulse"></span> Fathom</div>}
               <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>⚙️</button>
               <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
             </div>
