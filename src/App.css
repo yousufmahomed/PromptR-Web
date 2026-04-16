@@ -215,3 +215,22 @@ textarea {
   background: #ff4d4d;
   color: white;
 }
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.mirror-btn {
+  background: transparent;
+  border: 1px solid var(--cyan-glow);
+  color: var(--cyan-glow);
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.mirror-btn.active {
+  background: var(--cyan-glow);
+  color: black;
+}

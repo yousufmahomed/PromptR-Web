@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {
-  const [script, setScript] = useState("");
+  // 1. STATES
+  // We check localStorage immediately so your script is there on refresh
+  const [script, setScript] = useState(() => {
+    return localStorage.getItem("promptr-script") || "";
+  });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -10,7 +14,15 @@ function App() {
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(32);
   const [opacity, setOpacity] = useState(0.8);
+  const [isMirrored, setIsMirrored] = useState(false); // NEW: Mirror State
 
+  // 2. EFFECTS
+  // Save script to memory whenever it changes
+  useEffect(() => {
+    localStorage.setItem("promptr-script", script);
+  }, [script]);
+
+  // Scrolling Logic
   useEffect(() => {
     let interval;
     if (isLive) {
@@ -47,8 +59,11 @@ function App() {
         <div className="teleprompter-view">
           
           <div className="teleprompter-main-layout">
-            {/* 1. THE CENTERED SCRIPT COLUMN */}
-            <div className="script-column" style={{ backgroundColor: `rgba(0, 11, 20, ${opacity})` }}>
+            {/* 1. THE CENTERED SCRIPT COLUMN (Added mirroring class here) */}
+            <div 
+              className={`script-column ${isMirrored ? 'mirrored' : ''}`} 
+              style={{ backgroundColor: `rgba(0, 11, 20, ${opacity})` }}
+            >
               <div className="eye-line"></div>
               <div 
                 className="scrolling-text"
@@ -57,9 +72,9 @@ function App() {
                   fontSize: `${fontSize}px` 
                 }}
               >
-                <div style={{ height: '20px' }}></div>
+                <div style={{ height: '40vh' }}></div> {/* Buffer for start */}
                 {script}
-                <div style={{ height: '500px' }}></div>
+                <div style={{ height: '80vh' }}></div> {/* Buffer for end */}
               </div>
             </div>
 
@@ -80,12 +95,21 @@ function App() {
             </div>
             <div className="control-group">
               <label>Size</label>
-              <input type="range" min="16" max="60" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} />
+              <input type="range" min="16" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} />
             </div>
             <div className="control-group">
               <label>Glass</label>
               <input type="range" min="0.2" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} />
             </div>
+            
+            {/* NEW: Mirror Toggle Button */}
+            <button 
+              className={`mirror-btn ${isMirrored ? 'active' : ''}`}
+              onClick={() => setIsMirrored(!isMirrored)}
+            >
+              {isMirrored ? "NORMAL VIEW" : "MIRROR VIEW"}
+            </button>
+
             <button className="exit-btn-mini" onClick={handleEndSession}>EXIT</button>
           </div>
 
