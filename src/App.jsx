@@ -75,6 +75,7 @@ function App() {
       enableStream();
     }
     return () => {
+      // Cleanup when component unmounts or isLive changes
       if (stream) stream.getTracks().forEach(track => track.stop());
       setWebcamStream(null);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -83,17 +84,16 @@ function App() {
   }, [isLive]);
 
   // 2. Attach Webcam Safely (BULLETPROOF VERSION)
-  // By removing the dependency array, this checks the video feed on *every single render*.
-  // If React accidentally unplugs the video when changing classes, this plugs it right back in!
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       if (videoRef.current.srcObject !== webcamStream) {
         videoRef.current.srcObject = webcamStream;
       }
-      // Force it to play in case a layout shift paused it
-      videoRef.current.play().catch(e => console.log("Autoplay bypass:", e));
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(e => console.log("Playback bypass:", e));
+      }
     }
-  }); 
+  }, [webcamStream, isMeetingMode, screenStream, webcamSize, isLive]);
 
   // 3. Attach Screen Share Safely
   useEffect(() => {
@@ -101,7 +101,9 @@ function App() {
       if (screenRef.current.srcObject !== screenStream) {
         screenRef.current.srcObject = screenStream;
       }
-      screenRef.current.play().catch(e => console.log("Autoplay bypass:", e));
+      if (screenRef.current.paused) {
+        screenRef.current.play().catch(e => console.log("Playback bypass:", e));
+      }
     }
   });
 
@@ -172,6 +174,24 @@ function App() {
   };
 
   const exitSession = () => {
+    // 1. HARD KILL ALL STREAMS TO TURN OFF HARDWARE LIGHTS
+    if (webcamStream) {
+      webcamStream.getTracks().forEach(track => track.stop());
+      setWebcamStream(null);
+    }
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    // 2. RESET STATE
     setIsLive(false);
     setIsMeetingMode(false);
     setScrollPosition(0);
@@ -179,10 +199,6 @@ function App() {
     setIsPaused(false);
     setIsAiOpen(false);
     setIsSettingsOpen(false);
-    if (screenStream) {
-      screenStream.getTracks().forEach(track => track.stop());
-      setScreenStream(null);
-    }
   };
 
   const handleAiSubmit = (e) => {
@@ -217,7 +233,10 @@ function App() {
       {isLive && (
         <video 
           ref={videoRef} 
-          autoPlay playsInline muted 
+          autoPlay 
+          playsInline 
+          muted 
+          onLoadedMetadata={(e) => e.target.play()}
           className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
         />
       )}
@@ -247,7 +266,14 @@ function App() {
             {screenStream && (
               <div className="screen-share-sidebar">
                 <div className="sidebar-label">● LIVE SHARE</div>
-                <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
+                <video 
+                  ref={screenRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  onLoadedMetadata={(e) => e.target.play()}
+                  className="sidebar-video" 
+                />
               </div>
             )}
 
