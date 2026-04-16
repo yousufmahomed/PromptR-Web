@@ -23,7 +23,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
-  const [aiMessages, setAiMessages] = useState([{ role: 'system', text: "Ready to assist." }]);
+  const [aiMessages, setAiMessages] = useState([{ role: 'system', text: "Ready to assist, Captain." }]);
 
   const videoRef = useRef(null);
   const screenRef = useRef(null);
@@ -31,34 +31,26 @@ function App() {
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
   const chunksRef = useRef([]);
-  const lastMicLevelRef = useRef(0);
 
+  // Hardware Management
   useEffect(() => {
-    let isCancelled = false; 
     let stream = null;
     if (isLive) {
       async function enableStream() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          if (isCancelled) { stream.getTracks().forEach(t => t.stop()); return; }
           setWebcamStream(stream);
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioCtx;
           const analyser = audioCtx.createAnalyser();
           const source = audioCtx.createMediaStreamSource(stream);
           source.connect(analyser);
-          analyser.fftSize = 256;
           const dataArray = new Uint8Array(analyser.frequencyBinCount);
           const updateMic = () => {
-            if (isCancelled) return;
             analyser.getByteFrequencyData(dataArray);
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            const avg = sum / dataArray.length;
-            if (Math.abs(avg - lastMicLevelRef.current) > 2) {
-              setMicLevel(avg);
-              lastMicLevelRef.current = avg;
-            }
+            setMicLevel(sum / dataArray.length);
             animationRef.current = requestAnimationFrame(updateMic);
           };
           updateMic();
@@ -67,41 +59,33 @@ function App() {
       enableStream();
     }
     return () => {
-      isCancelled = true;
       if (stream) stream.getTracks().forEach(t => t.stop());
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, [isLive]);
 
   useEffect(() => {
     if (videoRef.current && webcamStream) {
-      if (videoRef.current.srcObject !== webcamStream) videoRef.current.srcObject = webcamStream;
+      videoRef.current.srcObject = webcamStream;
       videoRef.current.play().catch(() => {});
     }
-  }, [webcamStream, isMeetingMode, screenStream, webcamSize, isLive]);
+  }, [webcamStream, isMeetingMode, screenStream, webcamSize, isLive, isPrompterHidden]);
 
   useEffect(() => {
     if (screenRef.current && screenStream) {
-      if (screenRef.current.srcObject !== screenStream) screenRef.current.srcObject = screenStream;
+      screenRef.current.srcObject = screenStream;
       screenRef.current.play().catch(() => {});
     }
   }, [screenStream]);
 
   useEffect(() => {
     let interval;
-    if (isLive && !isPrompterHidden && !isPaused) {
+    if (isLive && !isPaused && !isPrompterHidden) {
       interval = setInterval(() => {
-        setScrollPosition((prev) => prev + (scrollSpeed * 0.4));
+        setScrollPosition(p => p + (scrollSpeed * 0.4));
       }, 30);
     }
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused, isPrompterHidden]);
-
-  useEffect(() => {
-    setScrollPosition(0);
-    localStorage.setItem("promptr_data", script);
-  }, [script]);
 
   const toggleScreenShare = async () => {
     if (screenStream) {
@@ -109,39 +93,27 @@ function App() {
       setScreenStream(null);
     } else {
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
-        stream.getVideoTracks()[0].onended = () => setScreenStream(null);
       } catch (err) { console.error(err); }
     }
   };
 
   const startRecording = () => {
     chunksRef.current = [];
-    if (!webcamStream) return;
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' : 'video/webm';
-    mediaRecorderRef.current = new MediaRecorder(webcamStream, { mimeType });
-    mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    mediaRecorderRef.current.onstop = handleDownload;
+    const stream = webcamStream;
+    mediaRecorderRef.current = new MediaRecorder(stream);
+    mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
+    mediaRecorderRef.current.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Recording-${Date.now()}.webm`;
+      a.click();
+    };
     mediaRecorderRef.current.start();
     setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current?.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const handleDownload = () => {
-    const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `PromptR-${Date.now()}.webm`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const exitSession = () => {
@@ -152,27 +124,26 @@ function App() {
     setIsLive(false);
     setIsMeetingMode(false);
     setIsPrompterHidden(false);
-    setIsAiOpen(false);
-    setIsSettingsOpen(false);
-    setIsEditorOpen(false);
-    setIsPaused(false);
   };
 
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
       {!isLive && <header className="header"><h1 className="logo">Prompt<span>R</span></h1></header>}
+
       {isLive && (
         <video ref={videoRef} autoPlay playsInline muted 
           className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
         />
       )}
-      {isRecording && <div className="rec-pulse">REC</div>}
+
       {!isLive ? (
         <main className="dashboard">
-          <div className="stencil-box"><button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>{script ? "EDIT SCRIPT" : "+ SCRIPT"}</button></div>
+          <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
+            {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT"}
+          </button>
           <div className="mode-selection">
-            <button className="launch-btn" onClick={() => setIsLive(true)}>Standard</button>
-            <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting</button>
+            <button className="launch-btn" onClick={() => setIsLive(true)}>Standard Mode</button>
+            <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting Mode</button>
             <button className="launch-btn freetalk-btn" onClick={() => { setIsPrompterHidden(true); setIsLive(true); }}>Free Talk</button>
           </div>
         </main>
@@ -181,7 +152,7 @@ function App() {
           <div className={`teleprompter-main-layout ${isPrompterHidden ? 'no-prompter' : ''}`}>
             {screenStream && (
               <div className="screen-share-sidebar">
-                <div className="sidebar-label">● LIVE</div>
+                <div className="sidebar-label">● LIVE SHARE</div>
                 <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
               </div>
             )}
@@ -195,31 +166,45 @@ function App() {
               </div>
             )}
           </div>
+
           <button className="ai-fab" onClick={() => setIsAiOpen(!isAiOpen)}>✨ AI</button>
           <div className={`ai-panel ${isAiOpen ? 'open' : ''}`}>
-             <div className="ai-header"><h3>AI Assistant</h3><button onClick={() => setIsAiOpen(false)}>×</button></div>
-             <div className="ai-chat-window">{aiMessages.map((m, i) => <div key={i} className={`ai-message ${m.role}`}>{m.text}</div>)}</div>
+            <div className="ai-header"><h3>PromptR AI</h3><button onClick={() => setIsAiOpen(false)}>×</button></div>
+            <div className="ai-chat-window">{aiMessages.map((m, i) => <div key={i} className={`ai-message ${m.role}`}>{m.text}</div>)}</div>
           </div>
+
           <div className="control-bar-wrapper">
             <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
-               <label>Cam</label>
-               <select value={webcamSize} onChange={(e)=>setWebcamSize(e.target.value)} className="ui-select">
-                 <option value="small">S</option><option value="medium">M</option><option value="large">L</option>
-               </select>
+              <div className="control-group"><label>Cam Size</label>
+                <select className="ui-select" value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
+                  <option value="small">Small</option><option value="medium">Medium</option><option value="large">Full</option>
+                </select>
+              </div>
+              <div className="control-group"><label>Speed</label><input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} /></div>
+              <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(e.target.value)} /></div>
             </div>
+
             <div className="control-bar">
-               <button onClick={()=>setIsPaused(!isPaused)} className="action-btn">{isPaused?"▶":"⏸"}</button>
-               <button onClick={toggleScreenShare} className="action-btn">🖥</button>
-               {!isRecording ? <button onClick={startRecording} className="action-btn rec">●</button> : <button onClick={stopRecording} className="action-btn rec active">■</button>}
-               <button onClick={()=>setIsSettingsOpen(!isSettingsOpen)} className="action-btn">⚙️</button>
-               <button onClick={exitSession} className="exit-btn">EXIT</button>
+              <button className="action-btn" onClick={() => setIsPaused(!isPaused)}>{isPaused ? "▶" : "⏸"}</button>
+              <button className="action-btn" onClick={toggleScreenShare}>🖥</button>
+              {!isMeetingMode && <button className={`action-btn rec ${isRecording ? 'active' : ''}`} onClick={isRecording ? () => setIsRecording(false) : startRecording}>●</button>}
+              {isMeetingMode && <div className="fathom-notice"><span className="fathom-pulse"></span> Fathom</div>}
+              <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>⚙️</button>
+              <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
             </div>
           </div>
         </div>
       )}
-      {isEditorOpen && <div className="modal-overlay"><div className="modal-content"><textarea value={script} onChange={(e)=>setScript(e.target.value)}/><button onClick={()=>setIsEditorOpen(false)}>Save</button></div></div>}
-    </div>
-  );
-}
 
+      {isEditorOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} />
+            <div className="modal-actions"><button onClick={() => setIsEditorOpen(false)}>Save</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 export default App;

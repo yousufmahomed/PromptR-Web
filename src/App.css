@@ -3,155 +3,52 @@
   --bg-dark: #000b14;
   --rec-red: #ff4d4d;
   --share-purple: #b366ff;
-  
-  /* Fix #10: Z-Index Scale */
-  --z-bg: -1;
-  --z-base: 1;
-  --z-ui: 100;
-  --z-overlay: 1000;
 }
 
-body { 
-  margin: 0; 
-  background: #000; 
-  font-family: 'Inter', sans-serif;
-  overflow: hidden;
-  height: 100dvh; /* Fix #1: Dynamic Viewport */
-}
+body { margin: 0; background: #000; overflow: hidden; font-family: 'Inter', sans-serif; }
 
-.app-container { 
-  min-height: 100dvh; 
-  position: relative; 
-  background: radial-gradient(circle at top, #001a33 0%, var(--bg-dark) 100%);
-  /* Fix #11: Performant Transitions */
-  transition: opacity 0.4s ease;
-}
+.app-container { min-height: 100vh; position: relative; background: radial-gradient(circle at top, #001a33 0%, var(--bg-dark) 100%); }
+.app-container.is-live { background: transparent !important; }
 
-/* Fix #7: Aspect Ratio and Object Fit */
-.webcam-feed {
-  position: fixed;
-  z-index: var(--z-bg);
-  background: #000;
-  aspect-ratio: 16 / 9;
-  transition: transform 0.4s ease, width 0.4s ease;
-}
+/* WEBCAM FEEDS */
+.webcam-feed { position: fixed; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: -1; background: #000; }
+.webcam-feed.size-large { top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; filter: brightness(50%); }
+.webcam-feed.size-medium { width: 50vw; height: 50vh; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 20px; z-index: 1; filter: brightness(100%); border: 2px solid var(--cyan-glow); }
+.webcam-feed.size-small { width: 25vw; height: 25vh; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 20px; z-index: 1; filter: brightness(100%); border: 2px solid var(--cyan-glow); }
 
-.webcam-feed.size-large { top: 0; left: 0; width: 100vw; height: 100dvh; object-fit: cover; filter: brightness(60%); }
-.webcam-feed.size-medium { width: min(60vw, 800px); top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 20px; }
-.webcam-feed.size-small { width: min(30vw, 400px); top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 20px; }
+.webcam-feed.pip-mode { bottom: 120px; right: 40px; width: 320px; height: 180px; border-radius: 12px; z-index: 100; border: 2px solid var(--cyan-glow); }
+.webcam-feed.meeting-mode-cam { top: 30px; left: 40px; width: 320px; height: 180px; border-radius: 12px; z-index: 100; border: 2px solid #34a853; }
 
-/* Fix #3: Collision Handling for PiP */
-.webcam-feed.pip-mode {
-  bottom: clamp(100px, 15vh, 150px);
-  right: 20px;
-  width: min(320px, 40vw);
-  z-index: var(--z-ui);
-  border: 2px solid var(--cyan-glow);
-  border-radius: 12px;
-}
+/* LAYOUT */
+.teleprompter-view { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+.teleprompter-main-layout { display: flex; align-items: center; gap: 40px; width: 90%; max-width: 1600px; justify-content: center; }
+.teleprompter-main-layout.no-prompter .screen-share-sidebar { width: 80vw; max-width: 1200px; height: 70vh; }
 
-.webcam-feed.meeting-mode-cam {
-  top: 20px; left: 20px; width: 280px; z-index: var(--z-ui); border: 2px solid #34a853; border-radius: 12px;
-}
-
-/* Fix #2: Responsive Script Column */
-.script-column {
-  width: min(650px, 90vw);
-  height: 100dvh;
-  position: relative;
-  overflow: hidden;
-  background: rgba(0,0,0,0.6); /* Fix #6: Better Readability Overlay */
-  backdrop-filter: blur(4px);
-  border-left: 1px solid rgba(0,209,255,0.2);
-}
-
-.teleprompter-view {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100dvh;
-}
-
-.teleprompter-main-layout {
-  display: flex;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap; /* Fix #9: Prevent Horizontal Overflow */
-}
-
-/* Fix #1, #7: Screen Share Container */
-.screen-share-sidebar {
-  flex: 1 1 400px;
-  max-width: min(800px, 90vw);
-  aspect-ratio: 16 / 9;
-  border: 2px solid var(--share-purple);
-  border-radius: 15px;
-  overflow: hidden;
-  position: relative;
-  background: #000;
-}
-
+.screen-share-sidebar { width: 45vw; height: 55vh; border: 2px solid var(--share-purple); border-radius: 20px; overflow: hidden; position: relative; background: #000; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
 .sidebar-video { width: 100%; height: 100%; object-fit: contain; }
 
-/* Fix #5: Animation Playback State */
-.rec-pulse {
-  position: fixed; top: 20px; right: 20px;
-  background: var(--rec-red); color: #fff; padding: 5px 12px;
-  border-radius: 4px; font-weight: bold;
-  animation: pulse 1s infinite;
-  animation-play-state: running;
-}
+.script-column { width: 650px; height: 100vh; position: relative; overflow: hidden; border-left: 1px solid rgba(255,255,255,0.1); border-right: 1px solid rgba(255,255,255,0.1); }
+.scrolling-text { padding: 0 40px; text-align: center; color: white; line-height: 1.4; font-weight: 600; text-shadow: 2px 2px 10px rgba(0,0,0,1); }
+.eye-line { position: absolute; top: 12%; width: 100%; height: 80px; border-top: 2px solid var(--cyan-glow); border-bottom: 2px solid var(--cyan-glow); background: linear-gradient(to bottom, rgba(0,209,255,0.1), transparent); z-index: 10; }
 
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+/* CONTROL BAR */
+.control-bar-wrapper { position: fixed; bottom: 40px; display: flex; flex-direction: column; align-items: center; z-index: 200; }
+.control-bar { background: rgba(0, 30, 60, 0.9); backdrop-filter: blur(20px); padding: 12px 25px; border-radius: 50px; display: flex; gap: 30px; align-items: center; border: 1px solid var(--cyan-glow); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.action-btn { background: transparent; border: 1px solid white; color: white; padding: 10px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.action-btn:hover { background: white; color: black; }
+.action-btn.rec { border-color: var(--rec-red); color: var(--rec-red); }
+.action-btn.rec.active { background: var(--rec-red); color: white; }
 
-/* Fix #4: Reduced Complexity for Control Bar */
-.control-bar-wrapper {
-  position: fixed;
-  bottom: 20px;
-  z-index: var(--z-ui);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+/* DASHBOARD */
+.dashboard { height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+.large-insert-btn { background: transparent; border: 2px solid var(--cyan-glow); color: var(--cyan-glow); padding: 30px 60px; border-radius: 15px; font-size: 1.5rem; font-weight: 900; cursor: pointer; }
+.launch-btn { background: var(--cyan-glow); color: black; border: none; padding: 15px 40px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+.freetalk-btn { background: transparent; border: 2px solid var(--share-purple); color: var(--share-purple); }
 
-.control-bar {
-  background: rgba(0, 43, 77, 0.9);
-  padding: 10px 20px;
-  border-radius: 50px;
-  display: flex;
-  gap: min(30px, 4vw);
-  border: 1px solid var(--cyan-glow);
-}
+/* AI PANEL */
+.ai-fab { position: fixed; top: 40px; right: 40px; background: var(--share-purple); color: white; border: none; padding: 12px 25px; border-radius: 30px; font-weight: bold; z-index: 500; }
+.ai-panel { position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: #001224; transition: 0.4s; z-index: 1000; border-left: 2px solid var(--cyan-glow); }
+.ai-panel.open { right: 0; }
 
-.action-btn { background: transparent; border: 1px solid #fff; color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; }
-.action-btn.active { background: var(--cyan-glow); color: #000; }
-
-/* Fix #8: Responsive AI Panel */
-.ai-panel {
-  position: fixed; top: 0; right: -400px;
-  width: min(350px, 100vw);
-  height: 100dvh;
-  background: #001224;
-  z-index: var(--z-overlay);
-  transition: transform 0.3s ease;
-}
-.ai-panel.open { transform: translateX(-400px); }
-
-/* Fix #12: Responsive Modal */
-.modal-content {
-  background: #002b4d; padding: 20px; border-radius: 15px;
-  width: 90%; max-width: 500px;
-}
-textarea {
-  width: 100%; height: min(350px, 50vh);
-  background: #000; color: #fff; border-radius: 8px; padding: 10px;
-}
-
-/* Mobile Fallbacks */
-@media (max-width: 600px) {
-  .control-bar { gap: 10px; padding: 8px 12px; }
-  .script-column { font-size: 0.8em; }
-}
+.settings-popover { background: rgba(0, 15, 30, 0.95); padding: 25px; border-radius: 20px; border: 1px solid var(--cyan-glow); width: 300px; margin-bottom: 20px; display: none; flex-direction: column; gap: 15px; }
+.settings-popover.open { display: flex; }
