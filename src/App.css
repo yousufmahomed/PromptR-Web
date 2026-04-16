@@ -3,59 +3,57 @@
   --blueprint-blue: #002b4d;
   --cyan-glow: #00d1ff;
   --text-main: #e0f7ff;
-  --radius-lg: 24px;   /* For big containers */
-  --radius-md: 12px;   /* For buttons and inputs */
-  --font-modern: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --radius-lg: 24px;
+  --radius-md: 12px;
+  --font-modern: 'Inter', sans-serif;
 }
 
 body {
   margin: 0;
-  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-modern);
 }
 
 .app-container {
   min-height: 100vh;
   background: radial-gradient(circle at top, #001a33 0%, var(--bg-dark) 100%);
-  color: var(--text-main);
-  font-family: var(--font-modern);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  overflow: hidden;
+}
+
+.header {
+  padding: 20px 40px;
+  border-bottom: 1px solid rgba(0, 209, 255, 0.2);
 }
 
 .logo {
-  font-size: 2.8rem;
+  font-size: 2rem;
   font-weight: 800;
   color: var(--cyan-glow);
-  letter-spacing: -1px;
-  margin-top: 10px;
+  margin: 0;
 }
 
 .logo span {
-  background: rgba(0, 209, 255, 0.1);
   border: 2px solid var(--cyan-glow);
-  padding: 0 12px;
-  border-radius: 12px; /* Rounded logo box */
+  padding: 0 8px;
   margin-left: 5px;
+  border-radius: 8px;
 }
 
-.tagline {
-  margin-bottom: 20px;
-  font-weight: 300;
-  letter-spacing: 1px;
-  opacity: 0.7;
+.dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-/* DASHBOARD */
 .stencil-box {
-  margin-top: 50px;
   border: 2px dashed rgba(0, 209, 255, 0.3);
   padding: 60px;
-  background: rgba(0, 43, 77, 0.2);
   border-radius: var(--radius-lg);
-  text-align: center;
+  background: rgba(0, 43, 77, 0.1);
 }
 
 .large-insert-btn {
@@ -64,159 +62,66 @@ body {
   color: var(--cyan-glow);
   padding: 20px 40px;
   font-size: 1.2rem;
-  font-weight: 600;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.large-insert-btn:hover {
-  background: rgba(0, 209, 255, 0.1);
-  transform: translateY(-2px);
 }
 
 .launch-btn {
-  margin-top: 25px;
+  margin-top: 20px;
   background: var(--cyan-glow);
   color: black;
-  padding: 18px 45px;
-  font-weight: 700;
-  font-size: 1.1rem;
+  padding: 15px 40px;
   border: none;
+  font-weight: 700;
   border-radius: var(--radius-md);
   cursor: pointer;
-  box-shadow: 0 10px 20px rgba(0, 209, 255, 0.2);
 }
 
-/* TELEPROMPTER LAYOUT */
-.teleprompter-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-}
-
-.teleprompter-main-layout {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  position: relative;
-  margin-top: 30px;
+/* THE MIRROR LOGIC */
+.mirrored {
+  transform: scaleX(-1) !important;
 }
 
 .script-column {
-  width: 500px;
-  height: 62vh;
-  border: 2px solid rgba(0, 209, 255, 0.4);
-  background: rgba(0, 11, 20, 0.85);
-  backdrop-filter: blur(10px);
+  width: 600px;
+  height: 70vh;
+  border: 1px solid var(--cyan-glow);
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-lg); /* Beautiful rounded prompter */
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  margin: 20px auto;
+  border-radius: var(--radius-lg);
+}
+
+.scrolling-text {
+  padding: 40px;
+  text-align: center;
+  white-space: pre-wrap;
 }
 
 .eye-line {
   position: absolute;
-  top: 10%;
-  left: 0;
+  top: 15%;
   width: 100%;
-  height: 60px;
+  height: 80px;
   border-top: 2px solid var(--cyan-glow);
   border-bottom: 2px solid var(--cyan-glow);
   background: linear-gradient(to bottom, rgba(0, 209, 255, 0.1), transparent, rgba(0, 209, 255, 0.1));
   z-index: 10;
-  transform: translateY(-50%);
   pointer-events: none;
 }
 
-.scrolling-text {
-  padding: 0 40px;
-  text-align: center;
-  line-height: 1.6;
-  font-weight: 500;
-  color: #fff;
-}
-
-.notes-column {
-  position: absolute;
-  right: 60px;
-  width: 240px;
-  background: rgba(255, 204, 0, 0.05);
-  border-left: 3px solid #ffcc00;
-  padding: 20px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  color: #ffcc00;
-}
-
-/* BOTTOM PILL CONTROL BAR */
 .control-bar {
   display: flex;
-  gap: 35px;
-  background: rgba(0, 43, 77, 0.8);
-  backdrop-filter: blur(15px);
-  padding: 12px 40px;
-  border-radius: 100px; /* Perfect pill shape */
-  border: 1px solid rgba(0, 209, 255, 0.3);
-  margin-top: 25px;
-  align-items: center;
-}
-
-.control-group label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 4px;
-}
-
-/* MODAL MODERNIZATION */
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(8px);
-}
-
-.modal-content {
-  background: var(--blueprint-blue);
-  padding: 40px;
-  border-radius: var(--radius-lg);
+  gap: 20px;
+  background: rgba(0, 43, 77, 0.9);
+  padding: 15px 30px;
+  border-radius: 50px;
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
   border: 1px solid var(--cyan-glow);
-  box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-}
-
-textarea {
-  width: 100%;
-  height: 300px;
-  background: rgba(0, 11, 20, 0.5);
-  color: white;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(0, 209, 255, 0.2);
-  padding: 20px;
-  font-family: var(--font-modern);
-  font-size: 1.1rem;
-}
-
-.accept-btn {
-  background: var(--cyan-glow);
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  padding: 12px 25px;
-}
-
-.exit-btn-mini {
-  background: rgba(255, 77, 77, 0.2);
-  border: 1px solid #ff4d4d;
-  color: #ff4d4d;
-  padding: 8px 20px;
-  border-radius: 100px;
-  transition: 0.3s;
-}
-
-.exit-btn-mini:hover {
-  background: #ff4d4d;
-  color: white;
-}
-.mirrored {
-  transform: scaleX(-1);
+  align-items: center;
 }
 
 .mirror-btn {
@@ -227,10 +132,31 @@ textarea {
   border-radius: 20px;
   cursor: pointer;
   font-size: 0.7rem;
-  font-weight: bold;
 }
 
 .mirror-btn.active {
   background: var(--cyan-glow);
   color: black;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+
+.modal-content {
+  background: var(--blueprint-blue);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cyan-glow);
+  width: 80%;
+}
+
+textarea {
+  width: 100%; height: 300px;
+  background: #000; color: #fff;
+  padding: 20px; border-radius: 10px;
 }
