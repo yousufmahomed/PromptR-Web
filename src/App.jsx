@@ -11,8 +11,11 @@ function App() {
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(45);
   const [opacity, setOpacity] = useState(0.6);
+  
+  // NEW: PAUSE STATE
+  const [isPaused, setIsPaused] = useState(false);
 
-  // STUDIO STATES (Recording & Mic)
+  // STUDIO STATES
   const [isRecording, setIsRecording] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
@@ -26,7 +29,7 @@ function App() {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // UNIVERSAL STUDIO FEED (Camera & Mic)
+  // UNIVERSAL STUDIO FEED
   useEffect(() => {
     let stream = null;
     if (isLive) {
@@ -35,7 +38,6 @@ function App() {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           if (videoRef.current) videoRef.current.srcObject = stream;
 
-          // THE MICROPHONE "VITALS MONITOR"
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioCtx;
           const analyser = audioCtx.createAnalyser();
@@ -48,7 +50,7 @@ function App() {
             analyser.getByteFrequencyData(dataArray);
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            setMicLevel(sum / dataArray.length); // Calculate volume
+            setMicLevel(sum / dataArray.length);
             animationRef.current = requestAnimationFrame(updateMic);
           };
           updateMic();
@@ -64,18 +66,30 @@ function App() {
     };
   }, [isLive]);
 
-  // SCROLL ENGINE
+  // NEW: KEYBOARD LISTENER (Spacebar & Enter)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only pause if we are Live, and NOT typing in the script editor
+      if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault(); // Stops the spacebar from scrolling the whole webpage down
+        setIsPaused((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLive]);
+
+  // SCROLL ENGINE (Now respects the isPaused clutch)
   useEffect(() => {
     let interval;
-    if (isLive) {
+    if (isLive && !isPaused) {
       interval = setInterval(() => {
         setScrollPosition((prev) => prev + (scrollSpeed * 0.4));
       }, 30);
     }
     return () => clearInterval(interval);
-  }, [isLive, scrollSpeed]);
+  }, [isLive, scrollSpeed, isPaused]);
 
-  // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
     const stream = videoRef.current.srcObject;
@@ -106,8 +120,15 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const exitSession = () => {
+    setIsLive(false);
+    setIsMeetingMode(false);
+    setScrollPosition(0);
+    setIsRecording(false);
+    setIsPaused(false); // Reset pause state
+  };
+
   return (
-    // The 'is-live' class ensures the background becomes completely transparent
     <div className={`app-container ${isLive ? 'is-live' : ''} ${isMeetingMode ? 'meeting-active' : ''}`}>
       
       {!isLive && (
@@ -116,10 +137,7 @@ function App() {
         </header>
       )}
 
-      {/* WEBCAM FEED (Always on when Live) */}
       {isLive && <video ref={videoRef} autoPlay playsInline muted className="webcam-feed" />}
-
-      {/* RECORDING PULSE */}
       {isRecording && <div className="rec-pulse">REC</div>}
 
       {!isLive ? (
@@ -141,6 +159,10 @@ function App() {
           <div className="teleprompter-main-layout">
             <div className="script-column" style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
               <div className="eye-line"></div>
+              
+              {/* PAUSED WATERMARK */}
+              {isPaused && <div className="paused-watermark">PAUSED</div>}
+
               <div 
                 className="scrolling-text" 
                 style={{ 
@@ -157,7 +179,6 @@ function App() {
           </div>
 
           <div className="control-bar">
-            {/* RECORDING MODULE */}
             <div className="studio-module">
               <div className="mic-monitor">
                 <span className="mic-icon">🎤</span>
@@ -174,12 +195,17 @@ function App() {
             </div>
 
             <div className="settings-module">
+              {/* NEW PAUSE BUTTON FOR TOUCHSCREENS */}
+              <button className="pause-toggle-btn" onClick={() => setIsPaused(!isPaused)}>
+                {isPaused ? "▶ PLAY" : "⏸ PAUSE"}
+              </button>
+
               <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
               <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
               <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
             </div>
 
-            <button className="exit-btn-mini" onClick={() => { setIsLive(false); setIsMeetingMode(false); setScrollPosition(0); setIsRecording(false); }}>EXIT</button>
+            <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
           </div>
         </div>
       )}
