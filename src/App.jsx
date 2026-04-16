@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
+  // --- STATE ---
   const [script, setScript] = useState(() => localStorage.getItem("promptr_data") || "");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -17,35 +18,38 @@ function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
   
-  // NEW: Store BOTH streams in state so React can safely react to them
   const [webcamStream, setWebcamStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
   const [webcamSize, setWebcamSize] = useState("large"); 
   
+  // UI Upgrades
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiMessages, setAiMessages] = useState([
     { role: 'system', text: "Hi! I'm PromptR AI. Need help using the app, or want me to rewrite your script?" }
   ]);
 
+  // --- REFS ---
   const videoRef = useRef(null);
   const screenRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
 
+  // --- EFFECTS ---
   useEffect(() => {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // 1. FETCH WEBCAM & MIC
+  // 1. Fetch Webcam
   useEffect(() => {
     let stream = null;
     if (isLive) {
       async function enableStream() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          setWebcamStream(stream); // SAVE TO STATE INSTEAD OF DIRECTLY ATTACHING
+          setWebcamStream(stream);
 
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioCtx;
@@ -63,7 +67,10 @@ function App() {
             animationRef.current = requestAnimationFrame(updateMic);
           };
           updateMic();
-        } catch (err) { console.error("Camera/Mic access denied", err); }
+        } catch (err) { 
+          console.error("Camera/Mic access denied", err); 
+          alert("We could not access your camera! Please make sure your browser has permission and no other apps (like Zoom) are currently using it.");
+        }
       }
       enableStream();
     }
@@ -75,23 +82,30 @@ function App() {
     };
   }, [isLive]);
 
-  // 2. SAFELY BIND WEBCAM TO VIDEO ELEMENT
-  // This hook runs every time the webcamStream, layout, or isLive state changes.
-  // It guarantees the video element is ready before attaching the feed.
+  // 2. Attach Webcam Safely (BULLETPROOF VERSION)
+  // By removing the dependency array, this checks the video feed on *every single render*.
+  // If React accidentally unplugs the video when changing classes, this plugs it right back in!
   useEffect(() => {
     if (videoRef.current && webcamStream) {
-      videoRef.current.srcObject = webcamStream;
+      if (videoRef.current.srcObject !== webcamStream) {
+        videoRef.current.srcObject = webcamStream;
+      }
+      // Force it to play in case a layout shift paused it
+      videoRef.current.play().catch(e => console.log("Autoplay bypass:", e));
     }
-  }, [webcamStream, isLive, screenStream, webcamSize]);
+  }); 
 
-  // 3. SAFELY BIND SCREEN SHARE TO VIDEO ELEMENT
+  // 3. Attach Screen Share Safely
   useEffect(() => {
     if (screenRef.current && screenStream) {
-      screenRef.current.srcObject = screenStream;
+      if (screenRef.current.srcObject !== screenStream) {
+        screenRef.current.srcObject = screenStream;
+      }
+      screenRef.current.play().catch(e => console.log("Autoplay bypass:", e));
     }
-  }, [screenStream]);
+  });
 
-  // ROBUST KEYBOARD PAUSE
+  // Keyboard Pause
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
@@ -103,7 +117,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLive]);
 
-  // SCROLL ENGINE
+  // Scroll Engine
   useEffect(() => {
     let interval;
     if (isLive && !isPaused) {
@@ -114,7 +128,7 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused]);
 
-  // SCREEN SHARE ENGINE
+  // --- ACTIONS ---
   const toggleScreenShare = async () => {
     if (screenStream) {
       screenStream.getTracks().forEach(track => track.stop());
@@ -122,13 +136,12 @@ function App() {
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        setScreenStream(stream); // Just set the state, the useEffect above handles the HTML element!
+        setScreenStream(stream);
         stream.getVideoTracks()[0].onended = () => setScreenStream(null);
       } catch (err) { console.error("Screen share denied", err); }
     }
   };
 
-  // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
     if (!webcamStream) return alert("Camera not detected.");
@@ -165,13 +178,13 @@ function App() {
     setIsRecording(false);
     setIsPaused(false);
     setIsAiOpen(false);
+    setIsSettingsOpen(false);
     if (screenStream) {
       screenStream.getTracks().forEach(track => track.stop());
       setScreenStream(null);
     }
   };
 
-  // MOCK AI ENGINE
   const handleAiSubmit = (e) => {
     e.preventDefault();
     if (!aiInput.trim()) return;
@@ -190,6 +203,7 @@ function App() {
     }, 1200);
   };
 
+  // --- RENDER ---
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''} ${isMeetingMode ? 'meeting-active' : ''}`}>
       
@@ -199,12 +213,12 @@ function App() {
         </header>
       )}
 
-      {/* BACKGROUND WEBCAM FEED */}
+      {/* BACKGROUND / FLOATING WEBCAM FEED */}
       {isLive && (
         <video 
           ref={videoRef} 
           autoPlay playsInline muted 
-          className={`webcam-feed ${screenStream ? 'pip-mode' : `size-${webcamSize}`}`} 
+          className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
         />
       )}
 
@@ -267,33 +281,11 @@ function App() {
             </form>
           </div>
 
-          <div className="control-bar">
-            <div className="studio-module">
-              <button className={`pause-btn ${isPaused ? 'active' : ''}`} onClick={() => setIsPaused(!isPaused)}>
-                {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
-              </button>
-
-              <button className={`share-btn ${screenStream ? 'active' : ''}`} onClick={toggleScreenShare}>
-                {screenStream ? "⏹ STOP SHARE" : "🖥 SHARE SCREEN"}
-              </button>
-
-              {!isMeetingMode ? (
-                !isRecording ? <button className="rec-btn start" onClick={startRecording}>● RECORD</button> 
-                             : <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
-              ) : (
-                 <div className="fathom-notice">
-                    <span className="fathom-pulse"></span> Fathom Active
-                 </div>
-              )}
-              
-              <div className="mic-monitor">
-                <div className="mic-bar-bg">
-                  <div className="mic-bar-fill" style={{ width: `${Math.min(micLevel * 1.5, 100)}%`, backgroundColor: micLevel > 60 ? '#ffcc00' : '#34a853' }}></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="settings-module">
+          {/* CONTROL BAR */}
+          <div className="control-bar-wrapper">
+            
+            <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
+              <h4>Prompter Settings</h4>
               <div className="control-group">
                 <label>Cam Size</label>
                 <select className="ui-select" value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
@@ -303,15 +295,47 @@ function App() {
                 </select>
               </div>
               <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
-              <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
-              <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
+              <div className="control-group"><label>Text Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
+              <div className="control-group"><label>Glass Opacity</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
             </div>
 
-            <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
+            <div className="control-bar">
+              <div className="studio-module">
+                <button className={`action-btn pause ${isPaused ? 'active' : ''}`} onClick={() => setIsPaused(!isPaused)}>
+                  {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
+                </button>
+
+                <button className={`action-btn share ${screenStream ? 'active' : ''}`} onClick={toggleScreenShare}>
+                  {screenStream ? "⏹ STOP SHARE" : "🖥 SHARE"}
+                </button>
+
+                {!isMeetingMode ? (
+                  !isRecording ? <button className="action-btn rec start" onClick={startRecording}>● RECORD</button> 
+                               : <button className="action-btn rec stop" onClick={stopRecording}>■ STOP</button>
+                ) : (
+                   <div className="fathom-notice">
+                      <span className="fathom-pulse"></span> Fathom
+                   </div>
+                )}
+              </div>
+
+              <div className="utility-module">
+                <div className="mic-monitor">
+                  <div className="mic-bar-bg">
+                    <div className="mic-bar-fill" style={{ width: `${Math.min(micLevel * 1.5, 100)}%`, backgroundColor: micLevel > 60 ? '#ffcc00' : '#34a853' }}></div>
+                  </div>
+                </div>
+                
+                <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>⚙️</button>
+                <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
+              </div>
+            </div>
           </div>
+
         </div>
       )}
 
+      {/* SCRIPT EDITOR OVERLAY */}
       {isEditorOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
