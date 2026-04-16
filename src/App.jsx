@@ -10,20 +10,33 @@ function App() {
   const [fontSize, setFontSize] = useState(45);
   const [opacity, setOpacity] = useState(0.85);
   const [isMirrored, setIsMirrored] = useState(false);
-  const [isMeetingMode, setIsMeetingMode] = useState(false); // NEW
+  const [isMeetingMode, setIsMeetingMode] = useState(false);
   
   const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // Handle Webcam for Meeting Mode
+  // Persistent Webcam Logic
   useEffect(() => {
     if (isMeetingMode && isLive) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => { if (videoRef.current) videoRef.current.srcObject = stream; })
-        .catch(err => console.error("Webcam blocked", err));
+      const startWebcam = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          streamRef.current = stream;
+          if (videoRef.current) videoRef.current.srcObject = stream;
+        } catch (err) {
+          console.error("Webcam Error:", err);
+        }
+      };
+      startWebcam();
+    } else {
+      // Stop webcam when not in meeting mode
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     }
   }, [isMeetingMode, isLive]);
 
@@ -37,12 +50,17 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed]);
 
+  const stopSession = () => {
+    setIsLive(false);
+    setIsMeetingMode(false);
+    setScrollPosition(0);
+  };
+
   return (
-    <div className={`app-container ${isMeetingMode ? 'meeting-active' : ''}`}>
-      {!isMeetingMode && (
+    <div className="app-container">
+      {!isLive && (
         <header className="header">
           <h1 className="logo">Prompt<span>R</span></h1>
-          <p className="tagline">Authority in Every Word.</p>
         </header>
       )}
 
@@ -50,26 +68,28 @@ function App() {
         <main className="dashboard">
           <div className="stencil-box">
             <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
-              {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT HERE"}
+              {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT"}
             </button>
           </div>
           {script && (
-            <div style={{display: 'flex', gap: '15px'}}>
-              <button className="launch-btn" onClick={() => { setIsMeetingMode(false); setIsLive(true); }}>Standard Mode</button>
-              <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting Mode</button>
+            <div className="mode-selection">
+              <button className="launch-btn" onClick={() => setIsLive(true)}>Standard View</button>
+              <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting View</button>
             </div>
           )}
         </main>
       ) : (
         <div className="teleprompter-view">
-          {isMeetingMode && <video ref={videoRef} autoPlay className="webcam-bg" />}
+          {isMeetingMode && <video ref={videoRef} autoPlay playsInline className="webcam-bg" />}
           
           <div className="teleprompter-main-layout">
             <div className={`script-column ${isMirrored ? 'mirrored' : ''}`} 
-                 style={{ backgroundColor: `rgba(0, 11, 20, ${opacity})` }}>
+                 style={{ backgroundColor: `rgba(0, 0, 0, ${opacity})` }}>
+              
               <div className="eye-line"></div>
+              
               <div className="scrolling-text" style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px` }}>
-                <div style={{ height: '30vh' }}></div>
+                <div style={{ height: '15vh' }}></div> {/* Keeps text near the top eye-line */}
                 {script}
                 <div style={{ height: '80vh' }}></div>
               </div>
@@ -77,9 +97,9 @@ function App() {
 
             {!isMeetingMode && (
               <aside className="notes-column">
-                <h3>Presenter Notes</h3>
-                <p>• Eye-contact with lens</p>
-                <p>• Natural pauses</p>
+                <h3>Notes</h3>
+                <p>• Lens eye-contact</p>
+                <p>• Speak slowly</p>
               </aside>
             )}
           </div>
@@ -88,8 +108,7 @@ function App() {
             <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
             <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
             <div className="control-group"><label>Glass</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
-            <button className="mirror-btn" onClick={() => setIsMirrored(!isMirrored)}>{isMirrored ? "NORMAL" : "MIRROR"}</button>
-            <button className="exit-btn-mini" onClick={() => { setIsLive(false); setIsMeetingMode(false); setScrollPosition(0); }}>EXIT</button>
+            <button className="exit-btn-mini" onClick={stopSession}>EXIT</button>
           </div>
         </div>
       )}
