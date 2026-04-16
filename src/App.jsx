@@ -8,33 +8,37 @@ function App() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(45);
-  const [opacity, setOpacity] = useState(0.6); // Default to a nice 'Glass' level
+  const [opacity, setOpacity] = useState(0.6);
   const [isMeetingMode, setIsMeetingMode] = useState(false);
-  
+
+  // RECORDING STATES
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState([]);
   const videoRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("promptr_data", script);
   }, [script]);
 
-  // WEBCAM LOGIC
+  // UNIVERSAL WEBCAM LOGIC (Standard & Meeting)
   useEffect(() => {
     let stream = null;
-    if (isLive && isMeetingMode) {
+    if (isLive) {
       async function enableStream() {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           if (videoRef.current) videoRef.current.srcObject = stream;
-        } catch (err) { console.error("Camera access denied", err); }
+        } catch (err) { console.error("Camera/Mic access denied", err); }
       }
       enableStream();
     }
     return () => {
       if (stream) stream.getTracks().forEach(track => track.stop());
     };
-  }, [isLive, isMeetingMode]);
+  }, [isLive]);
 
-  // SCROLL LOGIC
+  // SCROLL ENGINE
   useEffect(() => {
     let interval;
     if (isLive) {
@@ -45,6 +49,38 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed]);
 
+  // RECORDING FUNCTIONS
+  const startRecording = () => {
+    setRecordedChunks([]);
+    const stream = videoRef.current.srcObject;
+    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+    mediaRecorderRef.current = new MediaRecorder(stream, options);
+    
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      if (event.data.size > 0) setRecordedChunks((prev) => [...prev, event.data]);
+    };
+    
+    mediaRecorderRef.current.onstop = handleDownload;
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+  };
+
+  const handleDownload = () => {
+    if (recordedChunks.length === 0) return;
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PromptR-Session-${new Date().getTime()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className={`app-container ${isMeetingMode ? 'meeting-active' : ''}`}>
       {!isLive && (
@@ -53,9 +89,8 @@ function App() {
         </header>
       )}
 
-      {isLive && isMeetingMode && (
-        <video ref={videoRef} autoPlay playsInline muted className="webcam-feed" />
-      )}
+      {/* WEBCAM IS NOW UNIVERSAL */}
+      {isLive && <video ref={videoRef} autoPlay playsInline muted className="webcam-feed" />}
 
       {!isLive ? (
         <main className="dashboard">
@@ -76,7 +111,7 @@ function App() {
           <div className="teleprompter-main-layout">
             <div 
               className="script-column" 
-              style={{ backgroundColor: `rgba(0, 0, 0, ${isMeetingMode ? opacity : 1})` }}
+              style={{ backgroundColor: `rgba(0, 0, 0, ${isMeetingMode ? opacity : 0.8})` }}
             >
               <div className="eye-line"></div>
               <div 
@@ -84,21 +119,30 @@ function App() {
                 style={{ 
                   transform: `translateY(-${scrollPosition}px)`, 
                   fontSize: `${fontSize}px`,
-                  textShadow: '2px 2px 4px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.8)' // THE FIX: High contrast
+                  textShadow: '2px 2px 4px rgba(0,0,0,1)'
                 }}
               >
-                <div style={{ height: '12vh' }}></div> {/* Buffer to align with eye-line */}
+                <div style={{ height: '12vh' }}></div>
                 {script}
                 <div style={{ height: '80vh' }}></div>
               </div>
             </div>
           </div>
 
+          {isRecording && <div className="rec-pulse">REC</div>}
+
           <div className="control-bar">
             <div className="control-group"><label>Speed</label><input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(parseFloat(e.target.value))} /></div>
             <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value))} /></div>
-            <div className="control-group"><label>Glass (Darkness)</label><input type="range" min="0" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} /></div>
-            <button className="exit-btn-mini" onClick={() => { setIsLive(false); setIsMeetingMode(false); setScrollPosition(0); }}>EXIT</button>
+            
+            {/* RECORDING BUTTON */}
+            {!isRecording ? (
+              <button className="rec-btn start" onClick={startRecording}>● RECORD</button>
+            ) : (
+              <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
+            )}
+
+            <button className="exit-btn-mini" onClick={() => { setIsLive(false); setIsMeetingMode(false); setScrollPosition(0); setIsRecording(false); }}>EXIT</button>
           </div>
         </div>
       )}
