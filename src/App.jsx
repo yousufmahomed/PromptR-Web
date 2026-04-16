@@ -32,20 +32,25 @@ function App() {
   const animationRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // Hardware Management
+  // Hardware Management - Camera & Mic
   useEffect(() => {
     let stream = null;
     if (isLive) {
       async function enableStream() {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 1280, height: 720 }, 
+            audio: true 
+          });
           setWebcamStream(stream);
+          
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioCtx;
           const analyser = audioCtx.createAnalyser();
           const source = audioCtx.createMediaStreamSource(stream);
           source.connect(analyser);
           const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
           const updateMic = () => {
             analyser.getByteFrequencyData(dataArray);
             let sum = 0;
@@ -54,29 +59,42 @@ function App() {
             animationRef.current = requestAnimationFrame(updateMic);
           };
           updateMic();
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+          console.error("Webcam Error:", err);
+          alert("Could not access webcam.");
+        }
       }
       enableStream();
     }
     return () => {
       if (stream) stream.getTracks().forEach(t => t.stop());
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [isLive]);
 
+  // STRICT VIDEO ASSIGNMENT
   useEffect(() => {
-    if (videoRef.current && webcamStream) {
-      videoRef.current.srcObject = webcamStream;
-      videoRef.current.play().catch(() => {});
+    if (videoRef.current) {
+        // We ONLY ever want the webcam stream here. 
+        // If we stop being live or the stream is null, we clear it.
+        videoRef.current.srcObject = isLive ? webcamStream : null;
+        if (isLive && webcamStream) {
+            videoRef.current.play().catch(() => {});
+        }
     }
-  }, [webcamStream, isMeetingMode, screenStream, webcamSize, isLive, isPrompterHidden]);
+  }, [webcamStream, isLive, isMeetingMode, isPrompterHidden, webcamSize]);
 
   useEffect(() => {
-    if (screenRef.current && screenStream) {
-      screenRef.current.srcObject = screenStream;
-      screenRef.current.play().catch(() => {});
+    if (screenRef.current) {
+        // This element ONLY gets the screen stream.
+        screenRef.current.srcObject = screenStream || null;
+        if (screenStream) {
+            screenRef.current.play().catch(() => {});
+        }
     }
   }, [screenStream]);
 
+  // Scroll Engine
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
@@ -95,21 +113,22 @@ function App() {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
+        // If user stops sharing via browser bar
+        stream.getVideoTracks()[0].onended = () => setScreenStream(null);
       } catch (err) { console.error(err); }
     }
   };
 
   const startRecording = () => {
     chunksRef.current = [];
-    const stream = webcamStream;
-    mediaRecorderRef.current = new MediaRecorder(stream);
+    mediaRecorderRef.current = new MediaRecorder(webcamStream);
     mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
     mediaRecorderRef.current.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Recording-${Date.now()}.webm`;
+      a.download = `PromptR-Recording.webm`;
       a.click();
     };
     mediaRecorderRef.current.start();
@@ -124,23 +143,36 @@ function App() {
     setIsLive(false);
     setIsMeetingMode(false);
     setIsPrompterHidden(false);
+    setIsSettingsOpen(false);
+    setIsPaused(false);
+    setScrollPosition(0);
   };
 
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
-      {!isLive && <header className="header"><h1 className="logo">Prompt<span>R</span></h1></header>}
+      {!isLive && (
+        <header className="header">
+          <h1 className="logo">Prompt<span>R</span></h1>
+        </header>
+      )}
 
       {isLive && (
-        <video ref={videoRef} autoPlay playsInline muted 
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted 
           className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
         />
       )}
 
       {!isLive ? (
         <main className="dashboard">
-          <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
-            {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT"}
-          </button>
+          <div className="stencil-box">
+            <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
+              {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT"}
+            </button>
+          </div>
           <div className="mode-selection">
             <button className="launch-btn" onClick={() => setIsLive(true)}>Standard Mode</button>
             <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting Mode</button>
