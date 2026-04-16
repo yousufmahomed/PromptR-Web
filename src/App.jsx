@@ -17,7 +17,11 @@ function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [recordedChunks, setRecordedChunks] = useState([]);
   
+  // NEW: Screen share state
+  const [screenStream, setScreenStream] = useState(null);
+  
   const videoRef = useRef(null);
+  const screenRef = useRef(null); // NEW: Ref for screen share video element
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
@@ -66,9 +70,8 @@ function App() {
   // ROBUST KEYBOARD PAUSE (Spacebar & Enter)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Prevent pausing if user is typing in the textarea or adjusting a slider
       if (isLive && (e.code === 'Space' || e.code === 'Enter') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
-        e.preventDefault(); // Stops the page from scrolling down
+        e.preventDefault(); 
         setIsPaused((prev) => !prev);
       }
     };
@@ -87,13 +90,40 @@ function App() {
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused]);
 
+  // --- NEW: SCREEN SHARE ENGINE ---
+  const toggleScreenShare = async () => {
+    if (screenStream) {
+      // Stop sharing
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+    } else {
+      // Start sharing
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        setScreenStream(stream);
+        if (screenRef.current) screenRef.current.srcObject = stream;
+
+        // Handle user stopping share via the browser's native "Stop Sharing" floating button
+        stream.getVideoTracks()[0].onended = () => {
+          setScreenStream(null);
+        };
+      } catch (err) {
+        console.error("Screen share denied or cancelled", err);
+      }
+    }
+  };
+
   // RECORDING ENGINE
   const startRecording = () => {
     setRecordedChunks([]);
-    const stream = videoRef.current.srcObject;
-    if (!stream) return alert("Camera/Mic not detected.");
     
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+    // Optional upgrade: You can switch this to record the screenStream if it exists, 
+    // but for now, we will record the primary webcam feed.
+    const streamToRecord = videoRef.current.srcObject; 
+    
+    if (!streamToRecord) return alert("Camera/Mic not detected.");
+    
+    mediaRecorderRef.current = new MediaRecorder(streamToRecord, { mimeType: 'video/webm;codecs=vp9,opus' });
     mediaRecorderRef.current.ondataavailable = (e) => {
       if (e.data.size > 0) setRecordedChunks((prev) => [...prev, e.data]);
     };
@@ -116,9 +146,7 @@ function App() {
     a.download = `PromptR-Session-${new Date().getTime()}.webm`;
     a.click();
     
-    // NOTIFICATION SO YOU KNOW WHERE IT WENT
     alert("Success! Your video has been saved to your computer's 'Downloads' folder.");
-    
     URL.revokeObjectURL(url);
   };
 
@@ -128,6 +156,10 @@ function App() {
     setScrollPosition(0);
     setIsRecording(false);
     setIsPaused(false);
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+    }
   };
 
   return (
@@ -139,7 +171,25 @@ function App() {
         </header>
       )}
 
-      {isLive && <video ref={videoRef} autoPlay playsInline muted className="webcam-feed" />}
+      {/* --- MEDIA FEEDS --- */}
+      {isLive && (
+        <div className="media-container">
+          {/* If screen sharing is active, the screen share becomes the background */}
+          {screenStream && (
+            <video ref={screenRef} autoPlay playsInline muted className="screen-share-feed" />
+          )}
+          
+          {/* The webcam feed shrinks to a PiP window if screen sharing is active */}
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted 
+            className={`webcam-feed ${screenStream ? 'pip-mode' : 'fullscreen-mode'}`} 
+          />
+        </div>
+      )}
+
       {isRecording && <div className="rec-pulse">REC</div>}
 
       {!isLive ? (
@@ -180,7 +230,6 @@ function App() {
           </div>
 
           <div className="control-bar">
-            {/* RECORD AND PAUSE ARE NOW GROUPED TOGETHER */}
             <div className="studio-module">
               <button 
                 className={`pause-btn ${isPaused ? 'active' : ''}`} 
@@ -189,10 +238,23 @@ function App() {
                 {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
               </button>
 
-              {!isRecording ? (
-                <button className="rec-btn start" onClick={startRecording}>● RECORD</button>
-              ) : (
-                <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
+              {/* NEW: Screen Share Button */}
+              <button className={`share-btn ${screenStream ? 'active' : ''}`} onClick={toggleScreenShare}>
+                {screenStream ? "⏹ STOP SHARE" : "🖥 SHARE SCREEN"}
+              </button>
+
+              {/* NEW: Hide local record button if in Meeting Mode (Fathom handles it) */}
+              {!isMeetingMode && (
+                !isRecording ? (
+                  <button className="rec-btn start" onClick={startRecording}>● RECORD</button>
+                ) : (
+                  <button className="rec-btn stop" onClick={stopRecording}>■ STOP</button>
+                )
+              )}
+              {isMeetingMode && (
+                 <div className="fathom-notice" style={{fontSize: '12px', color: '#888'}}>
+                    Fathom Active
+                 </div>
               )}
               
               <div className="mic-monitor">
