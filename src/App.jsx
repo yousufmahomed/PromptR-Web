@@ -21,6 +21,9 @@ function App() {
   const [screenStream, setScreenStream] = useState(null);
   const [webcamSize, setWebcamSize] = useState("large"); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiMessages, setAiMessages] = useState([{ role: 'system', text: "Ready to assist, Captain." }]);
 
   const videoRef = useRef(null);
   const screenRef = useRef(null);
@@ -29,7 +32,7 @@ function App() {
   const animationRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // --- HARDWARE START/STOP ---
+  // --- 1. HARDWARE ENGINE ---
   useEffect(() => {
     let stream = null;
     if (isLive) {
@@ -57,23 +60,25 @@ function App() {
           };
           updateMic();
         } catch (err) { 
-          alert("Camera access denied. Please check permissions.");
+          console.error(err);
+          alert("Camera access denied. Please check browser permissions.");
         }
       }
-      startCamera();
+      startHardware();
     }
     return () => {
-      // Cleanup on unmount
       if (stream) stream.getTracks().forEach(t => t.stop());
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [isLive]);
 
-  // --- PERSISTENT VIDEO ATTACHMENT ---
+  // --- 2. STREAM ATTACHMENT ---
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       videoRef.current.srcObject = webcamStream;
+      videoRef.current.play().catch(() => {});
     }
-  }, [webcamStream, isLive]);
+  }, [webcamStream, isLive, isMeetingMode, webcamSize, isPrompterHidden]);
 
   useEffect(() => {
     if (screenRef.current && screenStream) {
@@ -81,7 +86,7 @@ function App() {
     }
   }, [screenStream]);
 
-  // Scroll Engine
+  // --- 3. SCROLLING ENGINE ---
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
@@ -105,6 +110,22 @@ function App() {
     }
   };
 
+  const startRecording = () => {
+    chunksRef.current = [];
+    mediaRecorderRef.current = new MediaRecorder(webcamStream);
+    mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
+    mediaRecorderRef.current.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PromptR-Recording.webm`;
+      a.click();
+    };
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+  };
+
   const exitSession = () => {
     if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
@@ -113,8 +134,6 @@ function App() {
     setIsLive(false);
     setIsMeetingMode(false);
     setIsPrompterHidden(false);
-    setIsPaused(false);
-    setScrollPosition(0);
   };
 
   return (
@@ -126,15 +145,12 @@ function App() {
         </header>
       )}
 
-      {/* PERSISTENT WEBCAM: Always rendered when live to prevent "Black Screen" */}
+      {/* THE PERSISTENT HOST VIDEO PLAYER */}
       {isLive && (
         <video 
           ref={videoRef} 
-          autoPlay 
-          playsInline 
-          muted 
+          autoPlay playsInline muted 
           className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
-          onCanPlay={(e) => e.target.play()}
         />
       )}
 
@@ -175,18 +191,20 @@ function App() {
 
           <div className="control-bar-wrapper">
             <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
-              <div className="control-group">
-                <label>Cam Size</label>
+              <div className="control-group"><label>Cam Size</label>
                 <select className="ui-select" value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
                   <option value="small">Small</option><option value="medium">Medium</option><option value="large">Full</option>
                 </select>
               </div>
               <div className="control-group"><label>Speed</label><input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} /></div>
+              <div className="control-group"><label>Size</label><input type="range" min="20" max="100" value={fontSize} onChange={(e) => setFontSize(e.target.value)} /></div>
             </div>
 
             <div className="control-bar">
               <button className="action-btn" onClick={() => setIsPaused(!isPaused)}>{isPaused ? "▶" : "⏸"}</button>
               <button className="action-btn" onClick={toggleScreenShare}>🖥</button>
+              {!isMeetingMode && <button className={`action-btn rec ${isRecording ? 'active' : ''}`} onClick={isRecording ? () => setIsRecording(false) : startRecording}>●</button>}
+              {isMeetingMode && <div className="fathom-notice"><span className="fathom-pulse"></span> Fathom</div>}
               <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>⚙️</button>
               <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
             </div>
