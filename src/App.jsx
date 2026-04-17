@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
@@ -21,32 +21,22 @@ function App() {
   const [screenStream, setScreenStream] = useState(null);
   const [webcamSize, setWebcamSize] = useState("large"); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAiOpen, setIsAiOpen] = useState(false);
 
+  const videoRef = useRef(null);
   const screenRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
   const animationRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // --- CAMERA ATTACHMENT LOGIC ---
-  // Using a callback ref ensures that the stream is attached 
-  // the VERY INSTANT the video element is created in the DOM.
-  const webcamRef = useCallback((node) => {
-    if (node !== null && webcamStream) {
-      node.srcObject = webcamStream;
-      node.play().catch(e => console.error("Video play failed:", e));
-    }
-  }, [webcamStream, isMeetingMode, isPrompterHidden, webcamSize]);
-
-  // --- HARDWARE INITIALIZATION ---
+  // --- HARDWARE START/STOP ---
   useEffect(() => {
     let stream = null;
     if (isLive) {
-      async function startCamera() {
+      async function startHardware() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+            video: { width: 1280, height: 720 }, 
             audio: true 
           });
           setWebcamStream(stream);
@@ -67,19 +57,24 @@ function App() {
           };
           updateMic();
         } catch (err) { 
-          console.error("Hardware Error:", err);
-          alert("Camera access failed. Ensure no other apps (Zoom/Teams) are using it.");
+          alert("Camera access denied. Please check permissions.");
         }
       }
       startCamera();
     }
     return () => {
+      // Cleanup on unmount
       if (stream) stream.getTracks().forEach(t => t.stop());
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [isLive]);
 
-  // Screen Share Assignment
+  // --- PERSISTENT VIDEO ATTACHMENT ---
+  useEffect(() => {
+    if (videoRef.current && webcamStream) {
+      videoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream, isLive]);
+
   useEffect(() => {
     if (screenRef.current && screenStream) {
       screenRef.current.srcObject = screenStream;
@@ -110,22 +105,6 @@ function App() {
     }
   };
 
-  const startRecording = () => {
-    chunksRef.current = [];
-    mediaRecorderRef.current = new MediaRecorder(webcamStream);
-    mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
-    mediaRecorderRef.current.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `PromptR-Recording.webm`;
-      a.click();
-    };
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
-  };
-
   const exitSession = () => {
     if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
@@ -147,14 +126,15 @@ function App() {
         </header>
       )}
 
-      {/* WEBCAM LAYER */}
+      {/* PERSISTENT WEBCAM: Always rendered when live to prevent "Black Screen" */}
       {isLive && (
         <video 
-          ref={webcamRef} 
+          ref={videoRef} 
           autoPlay 
           playsInline 
           muted 
           className={`webcam-feed ${screenStream ? 'pip-mode' : isMeetingMode ? 'meeting-mode-cam' : `size-${webcamSize}`}`} 
+          onCanPlay={(e) => e.target.play()}
         />
       )}
 
@@ -175,7 +155,6 @@ function App() {
         <div className="teleprompter-view">
           <div className={`teleprompter-main-layout ${isPrompterHidden ? 'no-prompter' : ''}`}>
             
-            {/* SCREEN SHARE DOCK */}
             {screenStream && (
               <div className="screen-share-sidebar">
                 <div className="sidebar-label">● LIVE SHARE</div>
@@ -194,8 +173,6 @@ function App() {
             )}
           </div>
 
-          <button className="ai-fab" onClick={() => setIsAiOpen(!isAiOpen)}>✨ AI</button>
-          
           <div className="control-bar-wrapper">
             <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
               <div className="control-group">
@@ -210,7 +187,6 @@ function App() {
             <div className="control-bar">
               <button className="action-btn" onClick={() => setIsPaused(!isPaused)}>{isPaused ? "▶" : "⏸"}</button>
               <button className="action-btn" onClick={toggleScreenShare}>🖥</button>
-              {!isMeetingMode && <button className={`action-btn rec ${isRecording ? 'active' : ''}`} onClick={isRecording ? () => setIsRecording(false) : startRecording}>●</button>}
               <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>⚙️</button>
               <button className="exit-btn-mini" onClick={exitSession}>EXIT</button>
             </div>
