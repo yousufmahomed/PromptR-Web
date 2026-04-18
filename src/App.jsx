@@ -11,7 +11,6 @@ function App() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [scrollSpeed, setScrollSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(45);
-  const [opacity, setOpacity] = useState(0.6);
   const [isPaused, setIsPaused] = useState(false);
   
   const [webcamStream, setWebcamStream] = useState(null);
@@ -22,44 +21,57 @@ function App() {
   const videoRef = useRef(null);
   const screenRef = useRef(null);
 
-  // --- HARDWARE ENGINE ---
+  // --- HARDWARE INITIALIZATION ---
   useEffect(() => {
-    let stream = null;
+    let activeStream = null;
+
     if (isLive) {
       async function start() {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ 
+          // Standard request for cam/mic
+          activeStream = await navigator.mediaDevices.getUserMedia({ 
             video: { width: 1280, height: 720 }, 
             audio: true 
           });
-          setWebcamStream(stream);
+          setWebcamStream(activeStream);
         } catch (err) { 
-            alert("Hardware Error: Please refresh and ensure you are on HTTPS (SSL).");
-            setIsLive(false);
+          // Advanced Debugging
+          let msg = "Hardware Error: ";
+          if (err.name === 'NotAllowedError') msg += "Camera Permission Denied.";
+          else if (err.name === 'NotReadableError') msg += "Camera is already in use by another app (Zoom/Teams).";
+          else if (!window.isSecureContext) msg += "SSL Required. Use HTTPS.";
+          else msg += err.message;
+          
+          alert(msg);
+          setIsLive(false);
         }
       }
       start();
     }
+
     return () => { 
-      if (stream) stream.getTracks().forEach(t => t.stop()); 
+      if (activeStream) activeStream.getTracks().forEach(track => track.stop());
     };
   }, [isLive]);
 
-  // --- THE SYNC (Fixed Handshake) ---
+  // --- PERSISTENT ATTACHMENT ---
   useEffect(() => {
     if (videoRef.current && webcamStream) {
-      videoRef.current.srcObject = webcamStream;
+      if (videoRef.current.srcObject !== webcamStream) {
+        videoRef.current.srcObject = webcamStream;
+      }
       videoRef.current.play().catch(() => {});
     }
-  }, [webcamStream, isLive, isMeetingMode, webcamSize]);
+  }, [webcamStream, isMeetingMode, webcamSize, isLive]);
 
+  // --- SCREEN SHARE ATTACHMENT ---
   useEffect(() => {
     if (screenRef.current && screenStream) {
       screenRef.current.srcObject = screenStream;
     }
   }, [screenStream]);
 
-  // --- SCROLLING ---
+  // --- SCROLL ENGINE ---
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
@@ -82,21 +94,19 @@ function App() {
   };
 
   const exitSession = () => {
-    // Kill all tracks immediately to release the camera light
     if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
     setWebcamStream(null);
     setScreenStream(null);
     setIsLive(false);
-    setIsMeetingMode(false);
-    setIsPrompterHidden(false);
     setScrollPosition(0);
+    setIsPaused(false);
   };
 
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
       
-      {/* PERSISTENT WEBCAM BOX */}
+      {/* PERSISTENT HOST VIDEO */}
       {isLive && (
         <video 
           ref={videoRef} 
@@ -126,13 +136,14 @@ function App() {
             {screenStream && (
               <div className="screen-share-sidebar">
                 <div className="sidebar-label">● LIVE SHARE</div>
-                <video ref={screenRef} autoPlay playsInline muted />
+                <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
               </div>
             )}
 
             {!isPrompterHidden && (
-              <div className="script-column" style={{ background: `rgba(0,0,0,${opacity})` }}>
+              <div className="script-column">
                 <div className="eye-line" />
+                {isPaused && <div className="paused-watermark">PAUSED</div>}
                 <div className="scrolling-text" style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px` }}>
                   <div style={{ height: '20vh' }} />{script}<div style={{ height: '80vh' }} />
                 </div>
@@ -141,6 +152,13 @@ function App() {
           </div>
 
           <div className="control-bar-wrapper">
+            <div className="control-bar">
+               <button onClick={() => setIsPaused(!isPaused)} className="action-btn">{isPaused ? "▶" : "⏸"}</button>
+               <button onClick={toggleScreenShare} className="action-btn">🖥</button>
+               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="action-btn">⚙️</button>
+               <button className="action-btn exit" onClick={exitSession}>EXIT</button>
+            </div>
+            
             {isSettingsOpen && (
               <div className="settings-popover">
                  <label>Camera View</label>
@@ -153,12 +171,6 @@ function App() {
                  <input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} />
               </div>
             )}
-            <div className="control-bar">
-               <button onClick={() => setIsPaused(!isPaused)} className="action-btn pro-btn">{isPaused ? "▶" : "⏸"}</button>
-               <button onClick={toggleScreenShare} className="action-btn pro-btn">🖥</button>
-               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="action-btn pro-btn">⚙️</button>
-               <button className="action-btn exit-btn" onClick={exitSession}>EXIT</button>
-            </div>
           </div>
         </div>
       )}
@@ -174,4 +186,4 @@ function App() {
     </div>
   )
 }
-export default App;;
+export default App;
