@@ -28,31 +28,30 @@ function App() {
     if (isLive) {
       async function start() {
         try {
-          // Requesting high-quality 720p stream
           stream = await navigator.mediaDevices.getUserMedia({ 
             video: { width: 1280, height: 720 }, 
             audio: true 
           });
           setWebcamStream(stream);
         } catch (err) { 
-            alert("Hardware Error: Ensure you are on HTTPS and no other app is using the camera.");
+            alert("Hardware Error: Please refresh and ensure you are on HTTPS (SSL).");
             setIsLive(false);
         }
       }
       start();
     }
-    return () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
+    return () => { 
+      if (stream) stream.getTracks().forEach(t => t.stop()); 
+    };
   }, [isLive]);
 
-  // --- THE "GLUE" (Syncing stream to the PERSISTENT element) ---
+  // --- THE SYNC (Fixed Handshake) ---
   useEffect(() => {
     if (videoRef.current && webcamStream) {
-      if (videoRef.current.srcObject !== webcamStream) {
-        videoRef.current.srcObject = webcamStream;
-      }
-      videoRef.current.play().catch(e => console.error("Playback failed", e));
+      videoRef.current.srcObject = webcamStream;
+      videoRef.current.play().catch(() => {});
     }
-  }, [webcamStream, isLive]); // Only runs when the stream itself changes
+  }, [webcamStream, isLive, isMeetingMode, webcamSize]);
 
   useEffect(() => {
     if (screenRef.current && screenStream) {
@@ -60,7 +59,7 @@ function App() {
     }
   }, [screenStream]);
 
-  // --- SCROLL ENGINE ---
+  // --- SCROLLING ---
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
@@ -83,6 +82,7 @@ function App() {
   };
 
   const exitSession = () => {
+    // Kill all tracks immediately to release the camera light
     if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
     setWebcamStream(null);
@@ -96,13 +96,11 @@ function App() {
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
       
-      {/* THE MASTER WEBCAM: This element NEVER unmounts while live */}
+      {/* PERSISTENT WEBCAM BOX */}
       {isLive && (
         <video 
           ref={videoRef} 
-          autoPlay 
-          playsInline 
-          muted 
+          autoPlay playsInline muted 
           className={`master-webcam ${screenStream ? 'pip' : isMeetingMode ? 'meeting' : webcamSize}`} 
         />
       )}
@@ -143,19 +141,23 @@ function App() {
           </div>
 
           <div className="control-bar-wrapper">
-            <div className={`settings-popover ${isSettingsOpen ? 'open' : ''}`}>
-               <label>Camera Size</label>
-               <select value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
-                 <option value="large">Full Screen</option>
-                 <option value="medium">Studio (Mid)</option>
-                 <option value="small">Thumbnail</option>
-               </select>
-            </div>
+            {isSettingsOpen && (
+              <div className="settings-popover">
+                 <label>Camera View</label>
+                 <select value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
+                   <option value="large">Full Screen</option>
+                   <option value="medium">Medium</option>
+                   <option value="small">Thumbnail</option>
+                 </select>
+                 <label>Speed</label>
+                 <input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} />
+              </div>
+            )}
             <div className="control-bar">
-               <button onClick={() => setIsPaused(!isPaused)} className="action-btn">{isPaused ? "▶" : "⏸"}</button>
-               <button onClick={toggleScreenShare} className="action-btn">🖥</button>
-               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="action-btn">⚙️</button>
-               <button className="exit-btn" onClick={exitSession}>EXIT</button>
+               <button onClick={() => setIsPaused(!isPaused)} className="action-btn pro-btn">{isPaused ? "▶" : "⏸"}</button>
+               <button onClick={toggleScreenShare} className="action-btn pro-btn">🖥</button>
+               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="action-btn pro-btn">⚙️</button>
+               <button className="action-btn exit-btn" onClick={exitSession}>EXIT</button>
             </div>
           </div>
         </div>
@@ -165,11 +167,11 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content">
             <textarea value={script} onChange={(e) => setScript(e.target.value)} />
-            <button className="save-btn" onClick={() => setIsEditorOpen(false)}>Save Script</button>
+            <button className="save-btn" onClick={() => setIsEditorOpen(false)}>SAVE</button>
           </div>
         </div>
       )}
     </div>
   )
 }
-export default App;
+export default App;;
