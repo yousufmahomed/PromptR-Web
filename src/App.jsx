@@ -21,27 +21,28 @@ function App() {
   const videoRef = useRef(null);
   const screenRef = useRef(null);
 
-  // --- HARDWARE INITIALIZATION ---
+  // --- UNIVERSAL HARDWARE ENGINE ---
   useEffect(() => {
     let activeStream = null;
 
     if (isLive) {
       async function start() {
         try {
-          // Standard request for cam/mic
+          // FIX: Using the most basic constraints to prevent "Device Not Found"
           activeStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: 1280, height: 720 }, 
+            video: true, 
             audio: true 
           });
           setWebcamStream(activeStream);
         } catch (err) { 
-          // Advanced Debugging
           let msg = "Hardware Error: ";
-          if (err.name === 'NotAllowedError') msg += "Camera Permission Denied.";
-          else if (err.name === 'NotReadableError') msg += "Camera is already in use by another app (Zoom/Teams).";
-          else if (!window.isSecureContext) msg += "SSL Required. Use HTTPS.";
-          else msg += err.message;
-          
+          if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            msg += "No camera or microphone detected. Please plug them in!";
+          } else if (err.name === 'NotAllowedError') {
+            msg += "Permission denied. Please click the 'Lock' icon in the URL bar and allow Camera.";
+          } else {
+            msg += err.message;
+          }
           alert(msg);
           setIsLive(false);
         }
@@ -50,32 +51,33 @@ function App() {
     }
 
     return () => { 
-      if (activeStream) activeStream.getTracks().forEach(track => track.stop());
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+      }
     };
   }, [isLive]);
 
-  // --- PERSISTENT ATTACHMENT ---
+  // --- SYNC FEED TO SCREEN ---
   useEffect(() => {
     if (videoRef.current && webcamStream) {
-      if (videoRef.current.srcObject !== webcamStream) {
-        videoRef.current.srcObject = webcamStream;
-      }
-      videoRef.current.play().catch(() => {});
+      videoRef.current.srcObject = webcamStream;
+      videoRef.current.play().catch(e => console.warn("Stream Playback Issue:", e));
     }
-  }, [webcamStream, isMeetingMode, webcamSize, isLive]);
+  }, [webcamStream, isLive, webcamSize, isMeetingMode]);
 
-  // --- SCREEN SHARE ATTACHMENT ---
   useEffect(() => {
     if (screenRef.current && screenStream) {
       screenRef.current.srcObject = screenStream;
     }
   }, [screenStream]);
 
-  // --- SCROLL ENGINE ---
+  // --- SCROLL LOGIC ---
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
-      interval = setInterval(() => setScrollPosition(p => p + (scrollSpeed * 0.4)), 30);
+      interval = setInterval(() => {
+        setScrollPosition(prev => prev + (scrollSpeed * 0.4));
+      }, 30);
     }
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused, isPrompterHidden]);
@@ -100,13 +102,12 @@ function App() {
     setScreenStream(null);
     setIsLive(false);
     setScrollPosition(0);
-    setIsPaused(false);
   };
 
   return (
     <div className={`app-container ${isLive ? 'is-live' : ''}`}>
       
-      {/* PERSISTENT HOST VIDEO */}
+      {/* THE HOST VIDEO (Persistent) */}
       {isLive && (
         <video 
           ref={videoRef} 
@@ -119,33 +120,32 @@ function App() {
         <div className="landing">
           <h1 className="logo">Prompt<span>R</span></h1>
           <div className="stencil-box">
-             <button className="large-insert-btn" onClick={() => setIsEditorOpen(true)}>
+             <button className="pro-insert-btn" onClick={() => setIsEditorOpen(true)}>
                {script ? "EDIT SCRIPT" : "+ INSERT SCRIPT"}
              </button>
           </div>
           <div className="mode-selection">
             <button className="launch-btn" onClick={() => setIsLive(true)}>Standard</button>
-            <button className="launch-btn meeting-btn" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting</button>
-            <button className="launch-btn freetalk-btn" onClick={() => { setIsPrompterHidden(true); setIsLive(true); }}>Free Talk</button>
+            <button className="launch-btn green-glow" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>Meeting</button>
+            <button className="launch-btn purple-glow" onClick={() => { setIsPrompterHidden(true); setIsLive(true); }}>Free Talk</button>
           </div>
         </div>
       ) : (
         <div className="teleprompter-view">
-          <div className={`teleprompter-layout ${isPrompterHidden ? 'center-only' : ''}`}>
+          <div className={`teleprompter-layout ${isPrompterHidden ? 'hidden-prompter' : ''}`}>
             
             {screenStream && (
               <div className="screen-share-sidebar">
-                <div className="sidebar-label">● LIVE SHARE</div>
-                <video ref={screenRef} autoPlay playsInline muted className="sidebar-video" />
+                <div className="live-tag">● LIVE SHARE</div>
+                <video ref={screenRef} autoPlay playsInline muted />
               </div>
             )}
 
             {!isPrompterHidden && (
               <div className="script-column">
                 <div className="eye-line" />
-                {isPaused && <div className="paused-watermark">PAUSED</div>}
                 <div className="scrolling-text" style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px` }}>
-                  <div style={{ height: '20vh' }} />{script}<div style={{ height: '80vh' }} />
+                  <div style={{ height: '25vh' }} />{script}<div style={{ height: '75vh' }} />
                 </div>
               </div>
             )}
@@ -153,22 +153,23 @@ function App() {
 
           <div className="control-bar-wrapper">
             <div className="control-bar">
-               <button onClick={() => setIsPaused(!isPaused)} className="action-btn">{isPaused ? "▶" : "⏸"}</button>
-               <button onClick={toggleScreenShare} className="action-btn">🖥</button>
-               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="action-btn">⚙️</button>
-               <button className="action-btn exit" onClick={exitSession}>EXIT</button>
+               <button onClick={() => setIsPaused(!isPaused)} className="ui-btn">{isPaused ? "▶" : "⏸"}</button>
+               <button onClick={toggleScreenShare} className="ui-btn">🖥</button>
+               <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="ui-btn">⚙️</button>
+               <button className="ui-btn exit-accent" onClick={exitSession}>EXIT</button>
             </div>
             
             {isSettingsOpen && (
-              <div className="settings-popover">
-                 <label>Camera View</label>
+              <div className="settings-bubble">
                  <select value={webcamSize} onChange={(e) => setWebcamSize(e.target.value)}>
-                   <option value="large">Full Screen</option>
-                   <option value="medium">Medium</option>
-                   <option value="small">Thumbnail</option>
+                   <option value="large">Full Backdrop</option>
+                   <option value="medium">Medium Frame</option>
+                   <option value="small">Floating Pin</option>
                  </select>
-                 <label>Speed</label>
-                 <input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} />
+                 <div className="speed-wrap">
+                   <span>SPEED</span>
+                   <input type="range" min="0.1" max="10" step="0.1" value={scrollSpeed} onChange={(e) => setScrollSpeed(e.target.value)} />
+                 </div>
               </div>
             )}
           </div>
@@ -178,8 +179,8 @@ function App() {
       {isEditorOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} />
-            <button className="save-btn" onClick={() => setIsEditorOpen(false)}>SAVE</button>
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="Paste your script here..." />
+            <button className="save-btn" onClick={() => setIsEditorOpen(false)}>DONE</button>
           </div>
         </div>
       )}
