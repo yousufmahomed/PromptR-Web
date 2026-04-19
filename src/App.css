@@ -3,7 +3,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -102,7 +102,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   border: 1px solid #333;
   z-index: 20;
 }
@@ -130,6 +130,7 @@ button {
   width: 100%;
   height: 100%;
   position: relative;
+  isolation: isolate;
 }
 
 /* Master Webcam Positioning */
@@ -144,18 +145,19 @@ button {
   opacity: 0.4; /* Dimmed behind text */
 }
 
-/* PiP Layer Fix: Sits above background, but below text */
+/* PiP Layer Fix: Explicitly override base absolute fill positioning */
 .master-webcam.pip {
+  position: absolute;
+  inset: auto 20px 96px auto;
   width: 300px;
+  max-width: 30vw;
+  aspect-ratio: 16 / 9;
   height: auto;
-  bottom: 20px;
-  right: 20px;
-  top: auto;
-  left: auto;
+  object-fit: cover;
   border-radius: 12px;
   border: 2px solid #fff;
   opacity: 1;
-  z-index: 2; 
+  z-index: 2;
 }
 
 .master-webcam.meeting {
@@ -170,7 +172,11 @@ button {
   width: 100%;
   height: calc(100% - 80px); /* Leave room for controls */
   display: flex;
-  z-index: 5; 
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(0.75rem, 2vw, 2rem);
+  padding: 0 clamp(0.5rem, 2vw, 2rem);
+  z-index: 5;
 }
 
 .layout-engine.hidden {
@@ -180,6 +186,7 @@ button {
 /* Sidebar for Screen Share */
 .sidebar {
   width: 40%;
+  min-width: 260px;
   padding: 2rem;
   display: flex;
   align-items: center;
@@ -190,12 +197,15 @@ button {
   width: 100%;
   border-radius: 12px;
   border: 2px solid #555;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 /* Script Column */
 .script-column {
-  flex-grow: 1;
+  flex: 0 1 560px;
+  width: min(100%, 560px);
+  max-width: 560px;
+  margin: 0 auto;
   position: relative;
   overflow: hidden;
   mask-image: linear-gradient(transparent, black 20%, black 80%, transparent);
@@ -205,8 +215,8 @@ button {
 .eye-line {
   position: absolute;
   top: 40%;
-  left: 10%;
-  width: 80%;
+  left: 8%;
+  width: 84%;
   height: 2px;
   background-color: rgba(0, 255, 136, 0.5);
   box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
@@ -215,12 +225,13 @@ button {
 }
 
 .scrolling-text {
-  padding: 0 10%;
+  padding: 0 clamp(1rem, 3vw, 1.5rem);
+  max-width: 100%;
   white-space: pre-wrap;
   line-height: 1.5;
   font-weight: 600;
   text-align: center;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
   will-change: transform;
 }
 
@@ -237,7 +248,7 @@ button {
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  z-index: 10; 
+  z-index: 10;
   border-top: 1px solid #333;
 }
 
@@ -277,7 +288,7 @@ button {
   gap: 1.5rem;
   z-index: 15;
   min-width: 300px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
 }
 
 .setting-row {
@@ -325,16 +336,19 @@ button {
     padding: 0 0.5rem;
   }
 
-  .icon-btn, .exit-btn {
+  .icon-btn,
+  .exit-btn {
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
   }
 
   /* Shrink PiP so it doesn't block the text or buttons */
   .master-webcam.pip {
+    inset: auto 10px 90px auto;
     width: 120px;
-    bottom: 90px; /* Moved up above the controls */
-    right: 10px;
+    max-width: 120px;
+    aspect-ratio: 16 / 9;
+    height: auto;
     border-width: 1px;
   }
 
@@ -349,10 +363,19 @@ button {
     padding: 1rem;
   }
 
+  .script-column {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .scrolling-text {
+    padding: 0 1rem;
+  }
   .settings-panel {
     width: 90%;
     min-width: auto;
     padding: 1rem;
   }
-}
 }
