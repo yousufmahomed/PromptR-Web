@@ -2,173 +2,163 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css'; 
 
 const PromptR = () => {
-  // --- STATE MANAGEMENT ---
-  const [isRecording, setIsRecording] = useState(false);
-  const [showSettings, setShowSettings] = useState(true); 
-  const [isPlaying, setIsPlaying] = useState(false);
-  
-  // Teleprompter Controls State
-  const [fontSize, setFontSize] = useState(48); 
-  const [textWidth, setTextWidth] = useState(350); 
-  const [textOpacity, setTextOpacity] = useState(90); 
-  const [scrollSpeed, setScrollSpeed] = useState(2); 
-
-  // --- DYNAMIC SCRIPT STATE ---
-  const [scriptText, setScriptText] = useState(
-`Welcome to PromptR.
-
-Your pasted script will appear right here.
-
-Because the text column is narrow, you can read this entire sentence without your eyes darting left and right.
-
-Adjust the sliders, hit play, and deliver your pitch naturally.`
-  );
-
-  // --- AUTO-SCROLL LOGIC ---
-  const [scrollY, setScrollY] = useState(0);
+  // --- CAMERA & SCROLL REFS ---
+  const videoRef = useRef(null);
   const requestRef = useRef();
 
+  // --- APP STATE ---
+  const [isRecording, setIsRecording] = useState(false);
+  const [mode, setMode] = useState('edit'); // 'edit' | 'present'
+  
+  // --- TELEPROMPTER SETTINGS ---
+  const [fontSize, setFontSize] = useState(48); 
+  const [textWidth, setTextWidth] = useState(400); 
+  const [scrollSpeed, setScrollSpeed] = useState(3); 
+  const [scriptText, setScriptText] = useState("");
+  const [scrollY, setScrollY] = useState(0);
+
+  // --- 1. WEBCAM INITIALIZATION ---
+  useEffect(() => {
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error("Camera access denied.", err);
+      }
+    };
+    startCamera();
+
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // --- 2. SMOOTH SCROLL ENGINE ---
   const updateScroll = () => {
-    if (isPlaying) {
-      setScrollY((prevScroll) => prevScroll + (scrollSpeed * 0.5)); 
+    if (mode === 'present') {
+      setScrollY((prev) => prev + (scrollSpeed * 0.5)); 
     }
     requestRef.current = requestAnimationFrame(updateScroll);
   };
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(updateScroll);
+    if (mode === 'present') {
+      requestRef.current = requestAnimationFrame(updateScroll);
+    }
     return () => cancelAnimationFrame(requestRef.current);
-  }, [isPlaying, scrollSpeed]);
+  }, [mode, scrollSpeed]);
 
-  const handleReset = () => {
-    setScrollY(0);
-    setIsPlaying(false);
+  // --- 3. MODE HANDLERS ---
+  const toggleMode = () => {
+    if (mode === 'edit') {
+      setScrollY(0); // Reset scroll when starting
+      setMode('present');
+    } else {
+      setMode('edit');
+    }
   };
 
   return (
     <div className="app-container">
-      <div className="teleprompter-view">
-        
-        {/* Placeholder for Video Feed */}
-        <div className="master-webcam" style={{ backgroundColor: '#18181b' }}>
-          {/* Your webcam <video> element goes here */}
-        </div>
+      
+      {/* LIVE CAMERA BACKGROUND */}
+      <video ref={videoRef} autoPlay playsInline muted className="master-camera" />
+      
+      {/* DARK OVERLAY FOR CONTRAST */}
+      <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
 
-        {/* --- HIGH VISIBILITY SETTINGS PANEL --- */}
-        {showSettings && (
-          <div className="settings-panel glass-card dark-panel">
-            <h3>PromptR Controls</h3>
-
-            {/* THE TEXT INSERTION BOX */}
-            <div className="setting-row">
-              <label className="highlight-label">1. Paste Your Script Here:</label>
-              <textarea 
-                className="script-input-bright"
-                value={scriptText}
-                onChange={(e) => setScriptText(e.target.value)}
-                placeholder="Delete this and paste your pitch here..."
-              />
-            </div>
-            
-            {/* THE SLIDERS */}
-            <div className="setting-row">
-              <label>2. Text Width (Narrow = Better Eye Contact)</label>
-              <input 
-                type="range" min="200" max="800" 
-                value={textWidth} 
-                onChange={(e) => setTextWidth(Number(e.target.value))} 
-              />
-            </div>
-
-            <div className="setting-row">
-              <label>3. Scroll Speed</label>
-              <input 
-                type="range" min="1" max="10" 
-                value={scrollSpeed} 
-                onChange={(e) => setScrollSpeed(Number(e.target.value))} 
-              />
-            </div>
-
-            <div className="setting-row">
-              <label>4. Font Size</label>
-              <input 
-                type="range" min="24" max="96" 
-                value={fontSize} 
-                onChange={(e) => setFontSize(Number(e.target.value))} 
-              />
-            </div>
-
-            <div className="setting-row">
-              <label>5. Text Opacity (%)</label>
-              <input 
-                type="range" min="20" max="100" 
-                value={textOpacity} 
-                onChange={(e) => setTextOpacity(Number(e.target.value))} 
-              />
-            </div>
+      {/* =========================================
+          MODE 1: EDIT & SETUP (Vibrant & Clean)
+          ========================================= */}
+      {mode === 'edit' && (
+        <div className="setup-dashboard">
+          <div className="glass-panel editor-panel">
+            <h2 className="gradient-text">Prepare Your Pitch</h2>
+            <textarea 
+              className="premium-textarea"
+              value={scriptText}
+              onChange={(e) => setScriptText(e.target.value)}
+              placeholder="Paste your script here to get started..."
+            />
           </div>
-        )}
 
-        {/* --- SCRIPT ENGINE --- */}
-        <div className="layout-engine">
-          <div className="script-column">
+          <div className="glass-panel settings-panel">
+            <h3 className="section-title">Display Settings</h3>
             
-            {/* The Target Eye-Line */}
-            <div className="eye-line-container">
-               <div className="eye-line-marker left"></div>
-               <div className="eye-line-glow"></div>
-               <div className="eye-line-marker right"></div>
-            </div>
-            
-            {/* The Scrolling Text */}
-            <div className="scrolling-text-container">
-              <div 
-                className="scrolling-text"
-                style={{
-                  maxWidth: `${textWidth}px`,
-                  fontSize: `${fontSize}px`,
-                  opacity: textOpacity / 100,
-                  transform: `translateY(-${scrollY}px)`,
-                }}
-              >
-                <div className="spacer top"></div>
-                {scriptText}
-                <div className="spacer bottom"></div>
+            <div className="slider-group">
+              <div className="slider-header">
+                <label>Text Width (Eye-Line)</label>
+                <span>{textWidth}px</span>
               </div>
+              <input type="range" min="200" max="800" value={textWidth} onChange={(e) => setTextWidth(Number(e.target.value))} />
+            </div>
+
+            <div className="slider-group">
+              <div className="slider-header">
+                <label>Scroll Speed</label>
+                <span>{scrollSpeed}x</span>
+              </div>
+              <input type="range" min="1" max="10" value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} />
+            </div>
+
+            <div className="slider-group">
+              <div className="slider-header">
+                <label>Font Size</label>
+                <span>{fontSize}px</span>
+              </div>
+              <input type="range" min="24" max="96" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} />
             </div>
           </div>
         </div>
+      )}
 
-        {/* --- BOTTOM CONTROLS BAR --- */}
-        <div className="controls-bar glass-card">
-          <button 
-            className={`btn-icon ${isRecording ? 'recording' : ''}`}
-            onClick={() => setIsRecording(!isRecording)}
-          >
-            {isRecording ? <div className="rec-dot"></div> : '⏺'} 
-            {isRecording ? 'Stop' : 'Record'}
-          </button>
-
-          <button 
-            className={`btn-icon play-btn ${isPlaying ? 'active' : ''}`}
-            onClick={() => setIsPlaying(!isPlaying)}
-          >
-            {isPlaying ? '⏸ Pause' : '▶️ Play'}
-          </button>
-
-          <button className="btn-icon" onClick={handleReset}>
-            ⏮ Reset Text
-          </button>
-
-          <button 
-            className={`btn-icon ${showSettings ? 'active' : ''}`}
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            ⚙️ Settings
-          </button>
+      {/* =========================================
+          MODE 2: PRESENTER (Minimalist)
+          ========================================= */}
+      {mode === 'present' && (
+        <div className="presenter-engine">
+          <div className="target-eyeline">
+            <div className="glow-bar"></div>
+          </div>
+          
+          <div className="scrolling-canvas">
+            <div 
+              className="scrolling-text"
+              style={{
+                maxWidth: `${textWidth}px`,
+                fontSize: `${fontSize}px`,
+                transform: `translateY(-${scrollY}px)`,
+              }}
+            >
+              <div className="spacer-top"></div>
+              {scriptText || "You forgot to paste your script!"}
+              <div className="spacer-bottom"></div>
+            </div>
+          </div>
         </div>
+      )}
 
+      {/* --- PREMIUM BOTTOM DOCK --- */}
+      <div className="premium-dock">
+        <button 
+          className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
+          onClick={() => setIsRecording(!isRecording)}
+        >
+          <span className="dot"></span>
+          {isRecording ? 'Stop Recording' : 'Record'}
+        </button>
+
+        <button className={`dock-btn primary-action ${mode === 'present' ? 'stop-action' : ''}`} onClick={toggleMode}>
+          {mode === 'edit' ? '▶ Start Teleprompter' : '⏹ End Presentation'}
+        </button>
       </div>
+
     </div>
   );
 };
