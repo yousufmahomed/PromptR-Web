@@ -13,6 +13,17 @@ const PromptR = () => {
   const [textOpacity, setTextOpacity] = useState(90); 
   const [scrollSpeed, setScrollSpeed] = useState(2); 
 
+  // --- DYNAMIC SCRIPT STATE ---
+  const [scriptText, setScriptText] = useState(
+`Welcome to PromptR.
+
+You can now paste your actual script into the text box in the settings panel.
+
+Because the text column is narrow, you can read this entire sentence without your eyes darting left and right.
+
+Adjust the sliders, hit play, and deliver your pitch naturally.`
+  );
+
   // --- AUTO-SCROLL LOGIC ---
   const [scrollY, setScrollY] = useState(0);
   const requestRef = useRef();
@@ -34,14 +45,6 @@ const PromptR = () => {
     setIsPlaying(false);
   };
 
-  const scriptText = `Welcome to PromptR. 
-
-This text is now positioned much higher, right under your camera lens.
-
-Because the text column is narrow, you can read this entire sentence without your eyes darting left and right.
-
-Use the settings panel to adjust the scroll speed, and click Play to start the teleprompter.`;
-
   return (
     <div className="app-container">
       <div className="teleprompter-view">
@@ -55,6 +58,17 @@ Use the settings panel to adjust the scroll speed, and click Play to start the t
         {showSettings && (
           <div className="settings-panel glass-card">
             <h3>Teleprompter Controls</h3>
+
+            {/* NEW: Text Insertion Box */}
+            <div className="setting-row">
+              <label>Your Script</label>
+              <textarea 
+                className="script-input"
+                value={scriptText}
+                onChange={(e) => setScriptText(e.target.value)}
+                placeholder="Paste your script here..."
+              />
+            </div>
             
             <div className="setting-row">
               <label>Text Width (Keep narrow for eye contact)</label>
