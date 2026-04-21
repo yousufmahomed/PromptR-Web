@@ -3,337 +3,255 @@ import './App.css';
 
 function App() {
   // App State
-  const [script, setScript] = useState(() => localStorage.getItem('promptr_data') || 'Welcome to PromptR. Enter your script here.');
+  const [script, setScript] = useState(() => localStorage.getItem("promptr_data") || "Welcome to PromptR. Look directly at the camera.\n\nUse the settings gear to adjust speed, text size, and background transparency.\n\nHit record when you are ready.");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isMeetingMode, setIsMeetingMode] = useState(false);
   const [isPrompterHidden, setIsPrompterHidden] = useState(false);
-
+  
   // Teleprompter State
   const [scrollPosition, setScrollPosition] = useState(0);
   const [scrollSpeed, setScrollSpeed] = useState(2);
-  const [fontSize, setFontSize] = useState(45);
+  const [fontSize, setFontSize] = useState(55);
+  const [camOpacity, setCamOpacity] = useState(0.4); // Transparency Slider State
   const [isPaused, setIsPaused] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Media Streams
+  
+  // Media Streams & Recording
   const [webcamStream, setWebcamStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
-  const [webcamSize, setWebcamSize] = useState('large');
-  const [cameraMessage, setCameraMessage] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
 
   // Refs
   const videoRef = useRef(null);
   const screenRef = useRef(null);
 
-  const getFriendlyCameraErrorMessage = (err) => {
-    const errorName = err?.name || '';
-
-    if (errorName === 'NotReadableError' || errorName === 'TrackStartError' || errorName === 'AbortError') {
-      return 'Your camera appears to be in use by another app (Zoom, Teams, etc.). Close that app and try again.';
-    }
-
-    if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError' || errorName === 'SecurityError') {
-      return 'Camera permission was denied. Please allow camera access in your browser settings and try again.';
-    }
-
-    if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
-      return 'No camera was found on this device. Please connect a camera and try again.';
-    }
-
-    if (errorName === 'OverconstrainedError') {
-      return 'Camera constraints were not supported by your device. Please try again with a different camera setup.';
-    }
-
-    return `We could not start your camera. ${err?.message ? `Details: ${err.message}` : 'Please verify your camera and browser permissions, then retry.'}`;
-  };
-
-  // 1. Initialize Webcam
+  // Initialize Webcam
   useEffect(() => {
     let activeStream = null;
-
-    if (!isLive) {
-      return undefined;
-    }
-
-    async function start() {
-      setCameraMessage('');
-      setWebcamStream(null);
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraMessage('Your browser does not support camera access (getUserMedia). Please use a modern browser.');
-        return;
-      }
-
-      try {
-        let hasVideoInput = true;
-        let hasAudioInput = true;
-
-        // Best-effort device check before requesting media
+    if (isLive) {
+      async function start() {
         try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          hasVideoInput = devices.some((device) => device.kind === 'videoinput');
-          hasAudioInput = devices.some((device) => device.kind === 'audioinput');
-        } catch (deviceErr) {
-          console.warn('Could not enumerate media devices before requesting permissions:', deviceErr);
-        }
-
-        if (!hasVideoInput) {
-          setCameraMessage('No camera detected. Please connect a camera and try again.');
-          return;
-        }
-
-        try {
-          // First try: video + audio (when available)
-          activeStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: hasAudioInput,
-          });
+          activeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true });
           setWebcamStream(activeStream);
-        } catch (avError) {
-          // Fallback: video only, so app still works without microphone
-          try {
-            activeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            setWebcamStream(activeStream);
-
-            if (hasAudioInput) {
-              setCameraMessage('Camera started without microphone. You can continue using video-only mode.');
-            }
-          } catch (videoOnlyError) {
-            setCameraMessage(getFriendlyCameraErrorMessage(videoOnlyError));
-            console.error('Failed to start camera (A/V and video-only fallback both failed):', {
-              avError,
-              videoOnlyError,
-            });
-          }
+        } catch (err) { 
+          alert("Camera Error: " + err.message);
+          setIsLive(false);
         }
-      } catch (err) {
-        setCameraMessage(getFriendlyCameraErrorMessage(err));
-        console.error('Unexpected camera initialization error:', err);
       }
+      start();
     }
-
-    start();
-
-    return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((t) => t.stop());
-      }
-    };
+    return () => { if (activeStream) activeStream.getTracks().forEach(t => t.stop()); };
   }, [isLive]);
 
-  // 2. Attach Webcam to Video Element
+  // Attach Webcam
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       videoRef.current.srcObject = webcamStream;
-      videoRef.current.play().catch((e) => console.error(e));
+      videoRef.current.play().catch(e => console.error(e));
     }
-  }, [webcamStream, isLive, webcamSize, isMeetingMode]);
+  }, [webcamStream, isLive, isMeetingMode]);
 
-  // 3. Attach Screen Share to Video Element
+  // Attach Screen Share
   useEffect(() => {
     if (screenRef.current && screenStream) {
       screenRef.current.srcObject = screenStream;
-      screenRef.current.play().catch((e) => console.error(e));
+      screenRef.current.play().catch(e => console.error(e));
     }
   }, [screenStream]);
 
-  // 4. Scrolling Logic
+  // Scrolling Logic
   useEffect(() => {
     let interval;
     if (isLive && !isPaused && !isPrompterHidden) {
       interval = setInterval(() => {
-        setScrollPosition((p) => p + scrollSpeed * 0.4);
+        setScrollPosition(p => p + (scrollSpeed * 0.4));
       }, 30);
     }
     return () => clearInterval(interval);
   }, [isLive, scrollSpeed, isPaused, isPrompterHidden]);
 
-  // Handlers
-  const toggleScreenShare = async () => {
-    if (screenStream) {
-      screenStream.getTracks().forEach((t) => t.stop());
-      setScreenStream(null);
+  // --- RECORDING LOGIC ---
+  const handleRecordToggle = () => {
+    if (isRecording) {
+      // Stop Recording
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     } else {
+      // Start Recording
+      if (!webcamStream) return alert("Camera not active");
+      recordedChunksRef.current = [];
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        setScreenStream(stream);
-        stream.getVideoTracks()[0].onended = () => setScreenStream(null);
+        const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+        const recorder = new MediaRecorder(webcamStream, options);
+        
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+        
+        recorder.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `PromptR_Recording_${new Date().toISOString().split('T')[0]}.webm`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+        };
+
+        recorder.start();
+        mediaRecorderRef.current = recorder;
+        setIsRecording(true);
       } catch (err) {
-        console.error('Screen share canceled or failed', err);
+        console.error("Recording error:", err);
+        alert("Failed to start recording. Browser may not support WebM format.");
       }
     }
   };
 
+  const toggleScreenShare = async () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach(t => t.stop());
+      setScreenStream(null);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        setScreenStream(stream);
+        stream.getVideoTracks()[0].onended = () => setScreenStream(null);
+      } catch (err) { console.error("Screen share canceled", err); }
+    }
+  };
+
   const exitSession = () => {
-    if (webcamStream) webcamStream.getTracks().forEach((t) => t.stop());
-    if (screenStream) screenStream.getTracks().forEach((t) => t.stop());
+    if (isRecording) handleRecordToggle(); // Stop recording if active
+    if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
+    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
     setIsLive(false);
     setWebcamStream(null);
     setScreenStream(null);
-    setCameraMessage('');
     setScrollPosition(0);
-  };
-
-  const saveScript = (newScript) => {
-    setScript(newScript);
-    localStorage.setItem('promptr_data', newScript);
   };
 
   return (
     <div className="app-container">
-      {!isLive && (
+      {!isLive ? (
         <div className="landing">
-          <h1 className="logo">
-            Prompt<span>R</span>
-          </h1>
-
-          <button className="pro-btn main" onClick={() => setIsEditorOpen(true)}>
-            📝 Edit Script
-          </button>
-
-          <div className="mode-selection">
-            <button
-              className="launch-btn"
-              onClick={() => {
-                setIsMeetingMode(false);
-                setIsLive(true);
-              }}
-            >
-              Standard Mode
+          <div className="glass-card">
+            <h1 className="logo">Prompt<span className="accent">R</span></h1>
+            <p className="subtitle">The Invisible Video Prompter</p>
+            
+            <button className="btn-primary" onClick={() => setIsEditorOpen(true)}>
+              <span className="icon">📝</span> Edit Script
             </button>
-            <button
-              className="launch-btn meeting"
-              onClick={() => {
-                setIsMeetingMode(true);
-                setIsLive(true);
-              }}
-            >
-              Meeting Mode
-            </button>
+            
+            <div className="mode-selection">
+              <button className="btn-secondary" onClick={() => { setIsMeetingMode(false); setIsLive(true); }}>
+                Standard Rec Mode
+              </button>
+              <button className="btn-secondary meeting" onClick={() => { setIsMeetingMode(true); setIsLive(true); }}>
+                Meeting Mode
+              </button>
+            </div>
           </div>
 
           {isEditorOpen && (
-            <div className="editor-modal">
-              <h2>Edit Script</h2>
-              <textarea
-                value={script}
-                onChange={(e) => saveScript(e.target.value)}
-                placeholder="Type or paste your script here..."
-              />
-              <button onClick={() => setIsEditorOpen(false)}>Save & Close</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {isLive && (
-        <div className={`teleprompter-view ${isMeetingMode ? 'meeting-theme' : 'standard-theme'}`}>
-          {webcamStream ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className={`master-webcam ${screenStream ? 'pip' : isMeetingMode ? 'meeting' : webcamSize}`}
-            />
-          ) : (
-            <div className="master-webcam" style={{ display: 'grid', placeItems: 'center', padding: '1rem', textAlign: 'center' }}>
-              <div>
-                <strong>Camera preview unavailable.</strong>
-                <p style={{ marginTop: '0.5rem' }}>The teleprompter can still be used without camera video.</p>
+            <div className="editor-overlay">
+              <div className="editor-modal glass-card">
+                <h2>Your Script</h2>
+                <textarea 
+                  value={script} 
+                  onChange={(e) => {
+                    setScript(e.target.value);
+                    localStorage.setItem("promptr_data", e.target.value);
+                  }}
+                  placeholder="Paste your script here..."
+                />
+                <button className="btn-primary" onClick={() => setIsEditorOpen(false)}>Save & Close</button>
               </div>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="teleprompter-view">
+          {/* Main Webcam (Inline Opacity Slider applied here) */}
+          <video 
+            ref={videoRef} 
+            autoPlay playsInline muted 
+            className={`master-webcam ${screenStream ? 'pip' : isMeetingMode ? 'meeting' : ''}`} 
+            style={{ opacity: screenStream || isMeetingMode ? 1 : camOpacity }}
+          />
 
-          {cameraMessage && (
-            <div style={{
-              position: 'absolute',
-              top: '1rem',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(20, 20, 20, 0.85)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              padding: '0.75rem 1rem',
-              zIndex: 1000,
-              maxWidth: '90%',
-              textAlign: 'center',
-            }}>
-              {cameraMessage}
-            </div>
-          )}
-
-          <div className={`layout-engine ${isPrompterHidden ? 'hidden' : ''}`}>
+          <div className="layout-engine">
             {screenStream && (
               <div className="sidebar">
                 <video ref={screenRef} autoPlay playsInline muted className="screen-video" />
               </div>
             )}
-
+            
             <div className="script-column">
-              <div className="eye-line" />
-              <div
-                className="scrolling-text"
-                style={{
-                  transform: `translateY(-${scrollPosition}px)`,
-                  fontSize: `${fontSize}px`,
-                }}
+              {/* New Modern Eye-Line */}
+              <div className="eye-line-container">
+                <div className="eye-line-marker left"></div>
+                <div className="eye-line-glow"></div>
+                <div className="eye-line-marker right"></div>
+              </div>
+
+              <div 
+                className="scrolling-text" 
+                style={{ transform: `translateY(-${scrollPosition}px)`, fontSize: `${fontSize}px` }}
               >
-                <div style={{ height: '40vh' }} />
+                <div className="spacer" />
                 {script}
-                <div style={{ height: '70vh' }} />
+                <div className="spacer bottom" />
               </div>
             </div>
           </div>
 
-          <div className="controls">
-            <button className="icon-btn" onClick={() => setIsPaused(!isPaused)}>
-              {isPaused ? '▶ Play' : '⏸ Pause'}
+          {/* Settings Overlay */}
+          {isSettingsOpen && (
+            <div className="settings-panel glass-card">
+              <h3>Controls</h3>
+              <div className="setting-row">
+                <label>Transparency</label>
+                <input type="range" min="0.1" max="1" step="0.05" value={camOpacity} onChange={(e) => setCamOpacity(Number(e.target.value))} />
+              </div>
+              <div className="setting-row">
+                <label>Scroll Speed</label>
+                <input type="range" min="0" max="10" step="0.5" value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} />
+              </div>
+              <div className="setting-row">
+                <label>Font Size</label>
+                <input type="range" min="30" max="120" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} />
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Glass Controls */}
+          <div className="controls-bar glass-card">
+            <button className={`btn-icon ${isRecording ? 'recording' : ''}`} onClick={handleRecordToggle}>
+              <span className="rec-dot"></span> {isRecording ? "Stop Recording" : "Record"}
             </button>
 
-            <button className="icon-btn" onClick={toggleScreenShare}>
-              {screenStream ? '🛑 Stop Share' : '🖥 Share Screen'}
+            <button className="btn-icon" onClick={() => setIsPaused(!isPaused)}>
+              {isPaused ? "▶ Play Text" : "⏸ Pause Text"}
+            </button>
+            
+            <button className="btn-icon" onClick={toggleScreenShare}>
+              {screenStream ? "🛑 Stop Share" : "🖥 Share Screen"}
             </button>
 
-            <button className="icon-btn" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
+            <button className={`btn-icon ${isSettingsOpen ? 'active' : ''}`} onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
               ⚙️ Settings
             </button>
 
-            <button className="exit-btn" onClick={exitSession}>
-              ✖ EXIT
+            <button className="btn-icon exit" onClick={exitSession}>
+              ✖ Exit
             </button>
           </div>
-
-          {isSettingsOpen && (
-            <div className="settings-panel">
-              <div className="setting-row">
-                <label>Speed ({scrollSpeed})</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="0.5"
-                  value={scrollSpeed}
-                  onChange={(e) => setScrollSpeed(Number(e.target.value))}
-                />
-              </div>
-              <div className="setting-row">
-                <label>Font Size ({fontSize}px)</label>
-                <input
-                  type="range"
-                  min="20"
-                  max="100"
-                  value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                />
-              </div>
-              <button className="close-settings" onClick={() => setIsSettingsOpen(false)}>
-                Done
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
