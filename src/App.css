@@ -1,64 +1,89 @@
-/* --- NEW SCRIPT TEXTAREA --- */
-.script-input {
-  width: 100%;
-  height: 120px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+/* --- HIGH VISIBILITY SETTINGS PANEL --- */
+.settings-panel {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1.5rem;
+  width: 400px; /* Made slightly wider to fit the text box better */
+  z-index: 15;
+  display: flex; 
+  flex-direction: column; 
+  gap: 1.25rem;
+}
+
+/* Darker background so it doesn't get lost over the video */
+.glass-card.dark-panel {
+  background: rgba(15, 15, 20, 0.95); 
   border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+}
+
+.settings-panel h3 { 
+  font-size: 1.2rem; 
+  color: #10b981; /* Green title */
+  border-bottom: 1px solid rgba(255,255,255,0.2); 
+  padding-bottom: 0.5rem; 
+  margin-bottom: 0;
+}
+
+.setting-row { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.5rem; 
+}
+
+.setting-row label { 
+  font-size: 0.95rem; 
+  font-weight: 600; 
+  color: #ffffff; 
+}
+
+.highlight-label {
+  color: #10b981 !important;
+  font-weight: 800 !important;
+}
+
+/* --- THE NEW BRIGHT TEXT BOX --- */
+.script-input-bright {
+  width: 100%;
+  height: 150px;
+  background: #ffffff; /* Solid White */
+  color: #000000; /* Solid Black text */
+  border: 2px solid #10b981; /* Green border */
   border-radius: 8px;
-  padding: 0.75rem;
-  font-size: 0.9rem;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 500;
   resize: vertical;
   font-family: 'Inter', sans-serif;
-  margin-bottom: 0.5rem;
-  transition: border-color 0.2s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.script-input:focus {
+.script-input-bright:focus {
   outline: none;
-  border-color: #10b981;
-  background: rgba(0, 0, 0, 0.7);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
 }
 
-/* --- UPDATED HIGH-VISIBILITY SLIDERS --- */
+/* --- BULLETPROOF VISIBLE SLIDERS --- */
 input[type=range] {
-  -webkit-appearance: none; 
-  width: 100%; 
-  background: transparent;
-}
-
-input[type=range]::-webkit-slider-runnable-track {
-  width: 100%; 
-  height: 6px; /* Thicker track */
-  background: rgba(255, 255, 255, 0.5); /* Much brighter white track */
-  border-radius: 3px;
-}
-
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 20px; /* Larger thumb */
-  width: 20px; 
-  border-radius: 50%;
-  background: #10b981;
+  /* This single line forces modern browsers to color the slider green */
+  accent-color: #10b981; 
+  width: 100%;
+  height: 8px; /* Thicker track */
+  background: rgba(255, 255, 255, 0.8); /* Solid white track background */
+  border-radius: 4px;
+  outline: none;
   cursor: pointer;
-  margin-top: -7px; /* Centers thumb on the new thicker track */
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.9); /* Brighter green glow */
+  margin: 10px 0;
 }
 
-/* Fix for Firefox sliders */
-input[type=range]::-moz-range-track {
-  width: 100%; 
-  height: 6px; 
-  background: rgba(255, 255, 255, 0.5); 
-  border-radius: 3px;
+/* Make the Play button stand out more */
+.btn-icon.play-btn {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  font-weight: 800;
 }
-
-input[type=range]::-moz-range-thumb {
-  height: 20px; 
-  width: 20px; 
-  border-radius: 50%;
-  background: #10b981;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.9);
+.btn-icon.play-btn:hover {
+  background: rgba(16, 185, 129, 0.4);
 }

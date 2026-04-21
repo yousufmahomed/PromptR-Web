@@ -17,7 +17,7 @@ const PromptR = () => {
   const [scriptText, setScriptText] = useState(
 `Welcome to PromptR.
 
-You can now paste your actual script into the text box in the settings panel.
+Your pasted script will appear right here.
 
 Because the text column is narrow, you can read this entire sentence without your eyes darting left and right.
 
@@ -54,24 +54,25 @@ Adjust the sliders, hit play, and deliver your pitch naturally.`
           {/* Your webcam <video> element goes here */}
         </div>
 
-        {/* --- SETTINGS PANEL --- */}
+        {/* --- HIGH VISIBILITY SETTINGS PANEL --- */}
         {showSettings && (
-          <div className="settings-panel glass-card">
-            <h3>Teleprompter Controls</h3>
+          <div className="settings-panel glass-card dark-panel">
+            <h3>PromptR Controls</h3>
 
-            {/* NEW: Text Insertion Box */}
+            {/* THE TEXT INSERTION BOX */}
             <div className="setting-row">
-              <label>Your Script</label>
+              <label className="highlight-label">1. Paste Your Script Here:</label>
               <textarea 
-                className="script-input"
+                className="script-input-bright"
                 value={scriptText}
                 onChange={(e) => setScriptText(e.target.value)}
-                placeholder="Paste your script here..."
+                placeholder="Delete this and paste your pitch here..."
               />
             </div>
             
+            {/* THE SLIDERS */}
             <div className="setting-row">
-              <label>Text Width (Keep narrow for eye contact)</label>
+              <label>2. Text Width (Narrow = Better Eye Contact)</label>
               <input 
                 type="range" min="200" max="800" 
                 value={textWidth} 
@@ -80,7 +81,7 @@ Adjust the sliders, hit play, and deliver your pitch naturally.`
             </div>
 
             <div className="setting-row">
-              <label>Scroll Speed</label>
+              <label>3. Scroll Speed</label>
               <input 
                 type="range" min="1" max="10" 
                 value={scrollSpeed} 
@@ -89,7 +90,7 @@ Adjust the sliders, hit play, and deliver your pitch naturally.`
             </div>
 
             <div className="setting-row">
-              <label>Font Size</label>
+              <label>4. Font Size</label>
               <input 
                 type="range" min="24" max="96" 
                 value={fontSize} 
@@ -98,7 +99,7 @@ Adjust the sliders, hit play, and deliver your pitch naturally.`
             </div>
 
             <div className="setting-row">
-              <label>Text Opacity (%)</label>
+              <label>5. Text Opacity (%)</label>
               <input 
                 type="range" min="20" max="100" 
                 value={textOpacity} 
@@ -149,7 +150,7 @@ Adjust the sliders, hit play, and deliver your pitch naturally.`
           </button>
 
           <button 
-            className={`btn-icon ${isPlaying ? 'active' : ''}`}
+            className={`btn-icon play-btn ${isPlaying ? 'active' : ''}`}
             onClick={() => setIsPlaying(!isPlaying)}
           >
             {isPlaying ? '⏸ Pause' : '▶️ Play'}
