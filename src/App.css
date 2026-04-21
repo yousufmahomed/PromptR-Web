@@ -42,7 +42,6 @@ body {
   background: #000;
 }
 
-/* Webcams */
 .master-webcam {
   position: absolute;
   top: 0; left: 0;
@@ -50,15 +49,6 @@ body {
   object-fit: cover;
   z-index: 1;
   transition: opacity 0.3s ease;
-}
-
-.master-webcam.pip {
-  width: 320px; height: auto;
-  bottom: 100px; right: 30px; top: auto; left: auto;
-  border-radius: 16px;
-  border: 2px solid rgba(255,255,255,0.2);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  z-index: 2;
 }
 
 /* Layout Engine */
@@ -75,14 +65,15 @@ body {
   flex-grow: 1;
   position: relative;
   overflow: hidden;
-  mask-image: linear-gradient(transparent 5%, black 40%, black 60%, transparent 95%);
-  -webkit-mask-image: linear-gradient(transparent 5%, black 40%, black 60%, transparent 95%);
+  mask-image: linear-gradient(transparent 2%, black 15%, black 70%, transparent 95%);
+  -webkit-mask-image: linear-gradient(transparent 2%, black 15%, black 70%, transparent 95%);
 }
 
 .eye-line-container {
   position: absolute;
-  top: 35%; /* Optimal reading position */
-  left: 0; width: 100%;
+  top: 15%; /* Forces the reader to look near the webcam */
+  left: 0; 
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -105,7 +96,7 @@ body {
 .eye-line-marker.left { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
 .eye-line-marker.right { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
 
-/* Text Container Fixes */
+/* Text Container */
 .scrolling-text-container {
   width: 100%;
   display: flex;
@@ -115,17 +106,16 @@ body {
 .scrolling-text {
   width: 100%;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
   font-weight: 700;
   text-align: center;
   color: #fff;
   text-shadow: 0px 4px 12px rgba(0,0,0,1), 0px 2px 4px rgba(0,0,0,1);
   will-change: transform;
-  transition: max-width 0.2s ease, font-size 0.2s ease;
 }
 
-.spacer { height: 35vh; }
-.spacer.bottom { height: 65vh; }
+.spacer.top { height: 15vh; }
+.spacer.bottom { height: 80vh; }
 
 /* --- GLASS CONTROLS & SETTINGS --- */
 .controls-bar {
@@ -176,9 +166,6 @@ body {
   100% { transform: scale(0.95); opacity: 0.8; }
 }
 
-.btn-icon.exit { border-color: rgba(239, 68, 68, 0.4); }
-.btn-icon.exit:hover { background: #ef4444; color: white; }
-
 /* Settings Panel */
 .settings-panel {
   position: absolute;
@@ -220,13 +207,4 @@ input[type=range]::-webkit-slider-runnable-track {
   width: 100%; height: 4px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
-}
-
-/* Mobile Adjustments */
-@media (max-width: 768px) {
-  .controls-bar { width: 95%; flex-wrap: wrap; justify-content: center; border-radius: 12px; }
-  .btn-icon { flex: 1 1 auto; justify-content: center; font-size: 0.85rem; padding: 0.6rem; }
-  .master-webcam.pip { width: 140px; bottom: 130px; right: 10px; }
-  .settings-panel { bottom: 130px; }
-}
 }

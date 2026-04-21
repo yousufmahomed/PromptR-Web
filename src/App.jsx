@@ -1,26 +1,46 @@
-import React, { useState } from 'react';
-import './App.css'; // Ensure this points to your CSS file
+import React, { useState, useEffect, useRef } from 'react';
+import './App.css'; 
 
 const PromptR = () => {
   // --- STATE MANAGEMENT ---
   const [isRecording, setIsRecording] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true); 
+  const [isPlaying, setIsPlaying] = useState(false);
   
   // Teleprompter Controls State
   const [fontSize, setFontSize] = useState(48); 
-  const [textWidth, setTextWidth] = useState(600); 
+  const [textWidth, setTextWidth] = useState(350); 
   const [textOpacity, setTextOpacity] = useState(90); 
+  const [scrollSpeed, setScrollSpeed] = useState(2); 
 
-  // Mock Script Content
+  // --- AUTO-SCROLL LOGIC ---
+  const [scrollY, setScrollY] = useState(0);
+  const requestRef = useRef();
+
+  const updateScroll = () => {
+    if (isPlaying) {
+      setScrollY((prevScroll) => prevScroll + (scrollSpeed * 0.5)); 
+    }
+    requestRef.current = requestAnimationFrame(updateScroll);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(updateScroll);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [isPlaying, scrollSpeed]);
+
+  const handleReset = () => {
+    setScrollY(0);
+    setIsPlaying(false);
+  };
+
   const scriptText = `Welcome to PromptR. 
 
-This is your integrated teleprompter and web-conferencing tool. 
+This text is now positioned much higher, right under your camera lens.
 
-Notice how adjusting the "Text Width" slider pulls the margins in. 
-By keeping this text narrow, your eyes remain fixed directly under the webcam lens.
+Because the text column is narrow, you can read this entire sentence without your eyes darting left and right.
 
-No more darting back and forth. No more obvious reading. 
-Just confident, natural delivery.`;
+Use the settings panel to adjust the scroll speed, and click Play to start the teleprompter.`;
 
   return (
     <div className="app-container">
@@ -31,44 +51,50 @@ Just confident, natural delivery.`;
           {/* Your webcam <video> element goes here */}
         </div>
 
-        {/* --- SETTINGS PANEL (Toggled via button) --- */}
+        {/* --- SETTINGS PANEL --- */}
         {showSettings && (
           <div className="settings-panel glass-card">
-            <h3>Teleprompter Settings</h3>
+            <h3>Teleprompter Controls</h3>
             
             <div className="setting-row">
-              <label>Text Margins (Reduce to stop eye-tracking)</label>
+              <label>Text Width (Keep narrow for eye contact)</label>
               <input 
-                type="range" 
-                min="300" max="1000" 
+                type="range" min="200" max="800" 
                 value={textWidth} 
-                onChange={(e) => setTextWidth(e.target.value)} 
+                onChange={(e) => setTextWidth(Number(e.target.value))} 
+              />
+            </div>
+
+            <div className="setting-row">
+              <label>Scroll Speed</label>
+              <input 
+                type="range" min="1" max="10" 
+                value={scrollSpeed} 
+                onChange={(e) => setScrollSpeed(Number(e.target.value))} 
               />
             </div>
 
             <div className="setting-row">
               <label>Font Size</label>
               <input 
-                type="range" 
-                min="24" max="96" 
+                type="range" min="24" max="96" 
                 value={fontSize} 
-                onChange={(e) => setFontSize(e.target.value)} 
+                onChange={(e) => setFontSize(Number(e.target.value))} 
               />
             </div>
 
             <div className="setting-row">
-              <label>Text Opacity</label>
+              <label>Text Opacity (%)</label>
               <input 
-                type="range" 
-                min="20" max="100" 
+                type="range" min="20" max="100" 
                 value={textOpacity} 
-                onChange={(e) => setTextOpacity(e.target.value)} 
+                onChange={(e) => setTextOpacity(Number(e.target.value))} 
               />
             </div>
           </div>
         )}
 
-        {/* --- LAYOUT ENGINE & SCRIPT COLUMN --- */}
+        {/* --- SCRIPT ENGINE --- */}
         <div className="layout-engine">
           <div className="script-column">
             
@@ -79,7 +105,7 @@ Just confident, natural delivery.`;
                <div className="eye-line-marker right"></div>
             </div>
             
-            {/* The Scrolling Text Container */}
+            {/* The Scrolling Text */}
             <div className="scrolling-text-container">
               <div 
                 className="scrolling-text"
@@ -87,12 +113,10 @@ Just confident, natural delivery.`;
                   maxWidth: `${textWidth}px`,
                   fontSize: `${fontSize}px`,
                   opacity: textOpacity / 100,
-                  // Note: To implement actual scrolling, you would add logic to update a 
-                  // state variable over time, and apply it here like:
-                  // transform: `translateY(-${scrollY}px)`
+                  transform: `translateY(-${scrollY}px)`,
                 }}
               >
-                <div className="spacer"></div>
+                <div className="spacer top"></div>
                 {scriptText}
                 <div className="spacer bottom"></div>
               </div>
@@ -110,8 +134,15 @@ Just confident, natural delivery.`;
             {isRecording ? 'Stop' : 'Record'}
           </button>
 
-          <button className="btn-icon">
-            ⏯ Play / Pause
+          <button 
+            className={`btn-icon ${isPlaying ? 'active' : ''}`}
+            onClick={() => setIsPlaying(!isPlaying)}
+          >
+            {isPlaying ? '⏸ Pause' : '▶️ Play'}
+          </button>
+
+          <button className="btn-icon" onClick={handleReset}>
+            ⏮ Reset Text
           </button>
 
           <button 
@@ -119,10 +150,6 @@ Just confident, natural delivery.`;
             onClick={() => setShowSettings(!showSettings)}
           >
             ⚙️ Settings
-          </button>
-
-          <button className="btn-icon exit">
-            Leave Call
           </button>
         </div>
 
@@ -132,4 +159,3 @@ Just confident, natural delivery.`;
 };
 
 export default PromptR;
-}
