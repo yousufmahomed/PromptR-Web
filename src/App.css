@@ -1,306 +1,59 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-}
-
-body {
-  background-color: #050505;
-  color: #ffffff;
-  overflow: hidden;
-}
-
-.app-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* --- CAMERA & BACKGROUND --- */
+/* --- PICTURE IN PICTURE (MEETING MODE) --- */
 .master-camera {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
-  transform: scaleX(-1); /* Mirror camera */
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.camera-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  transition: backdrop-filter 0.5s ease, background 0.5s ease;
-}
-
-.heavy-dim {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.light-dim {
-  background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.8) 100%);
-}
-
-/* --- SETUP DASHBOARD (EDIT MODE) --- */
-.setup-dashboard {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  gap: 2rem;
-  width: 90%;
-  max-width: 1200px;
-  height: 60vh;
-}
-
-.glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
-  padding: 2.5rem;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-/* Editor Panel */
-.editor-panel {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.gradient-text {
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-}
-
-.premium-textarea {
-  flex-grow: 1;
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  color: #f8fafc;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.master-camera.pip {
+  width: 280px; 
+  height: 160px;
+  bottom: 120px; 
+  right: 40px; 
+  top: auto; 
+  left: auto;
   border-radius: 16px;
-  padding: 1.5rem;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+  z-index: 10;
 }
 
-.premium-textarea:focus {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
-}
-
-.premium-textarea::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* Settings Panel */
-.settings-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.section-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #e2e8f0;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  padding-bottom: 1rem;
-}
-
-/* High-End Sliders */
-.slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.slider-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.slider-header span {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
-  padding: 0.2rem 0.6rem;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-input[type=range] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  outline: none;
-}
-
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #38bdf8;
-  cursor: pointer;
-  box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
-  transition: transform 0.1s ease;
-}
-
-input[type=range]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-/* --- PRESENTER MODE (CLEAN SCRIPT ENGINE) --- */
-.presenter-engine {
+/* --- MEETING BACKGROUND PLACEHOLDER --- */
+.meeting-background {
   position: absolute;
   inset: 0;
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-}
-
-.target-eyeline {
-  position: absolute;
-  top: 15%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  z-index: 15;
-}
-
-.glow-bar {
-  width: 250px;
-  height: 2px;
-  background: #38bdf8;
-  box-shadow: 0 0 20px #38bdf8, 0 0 40px rgba(56, 189, 248, 0.4);
-}
-
-.scrolling-canvas {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  mask-image: linear-gradient(transparent 5%, black 15%, black 60%, transparent 95%);
-  -webkit-mask-image: linear-gradient(transparent 5%, black 15%, black 60%, transparent 95%);
-}
-
-.scrolling-text {
-  text-align: center;
-  white-space: pre-wrap;
-  line-height: 1.4;
-  font-weight: 800;
-  color: #ffffff;
-  text-shadow: 0px 4px 20px rgba(0,0,0,1), 0px 2px 10px rgba(0,0,0,0.8);
-  will-change: transform;
-}
-
-.spacer-top { height: 15vh; }
-.spacer-bottom { height: 80vh; }
-
-/* --- PREMIUM BOTTOM DOCK --- */
-.premium-dock {
-  position: absolute;
-  bottom: 40px;
-  z-index: 20;
-  display: flex;
-  gap: 1rem;
-  background: rgba(15, 15, 20, 0.6);
-  padding: 0.75rem;
-  border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-}
-
-.dock-btn {
+  background: radial-gradient(circle at center, #1e1e24 0%, #000000 100%);
+  z-index: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: transparent;
-  color: #e2e8f0;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 100px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  justify-content: center;
 }
 
-.dock-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.meeting-placeholder {
+  width: 80%;
+  height: 70%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.meeting-placeholder span {
+  color: #64748b;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* --- MEETING BUTTON STYLING --- */
+.meeting-action {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.meeting-action:hover {
+  background: rgba(139, 92, 246, 0.4);
   color: #ffffff;
-}
-
-/* Record Button */
-.record-btn .dot {
-  width: 12px;
-  height: 12px;
-  background: #ef4444;
-  border-radius: 50%;
-}
-.record-btn.is-recording {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-.record-btn.is-recording .dot {
-  box-shadow: 0 0 12px #ef4444;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.5; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.5; }
-}
-
-/* Start/Stop Presenter Button */
-.primary-action {
-  background: linear-gradient(135deg, #38bdf8, #818cf8);
-  color: #ffffff;
-  box-shadow: 0 4px 15px rgba(129, 140, 248, 0.4);
-}
-
-.primary-action:hover {
-  background: linear-gradient(135deg, #7dd3fc, #a5b4fc);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(129, 140, 248, 0.6);
-}
-
-.primary-action.stop-action {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
-}
-.primary-action.stop-action:hover {
-  background: rgba(255, 255, 255, 0.2);
 }

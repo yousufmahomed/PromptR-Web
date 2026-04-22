@@ -8,7 +8,7 @@ const PromptR = () => {
 
   // --- APP STATE ---
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState('edit'); // 'edit' | 'present'
+  const [mode, setMode] = useState('edit'); // 'edit' | 'present' | 'meeting'
   
   // --- TELEPROMPTER SETTINGS ---
   const [fontSize, setFontSize] = useState(48); 
@@ -16,6 +16,8 @@ const PromptR = () => {
   const [scrollSpeed, setScrollSpeed] = useState(3); 
   const [scriptText, setScriptText] = useState("");
   const [scrollY, setScrollY] = useState(0);
+
+  const isActive = mode === 'present' || mode === 'meeting';
 
   // --- 1. WEBCAM INITIALIZATION ---
   useEffect(() => {
@@ -41,40 +43,64 @@ const PromptR = () => {
 
   // --- 2. SMOOTH SCROLL ENGINE ---
   const updateScroll = () => {
-    if (mode === 'present') {
+    if (isActive) {
       setScrollY((prev) => prev + (scrollSpeed * 0.5)); 
     }
     requestRef.current = requestAnimationFrame(updateScroll);
   };
 
   useEffect(() => {
-    if (mode === 'present') {
+    if (isActive) {
       requestRef.current = requestAnimationFrame(updateScroll);
     }
     return () => cancelAnimationFrame(requestRef.current);
-  }, [mode, scrollSpeed]);
+  }, [isActive, scrollSpeed]);
 
   // --- 3. MODE HANDLERS ---
-  const toggleMode = () => {
-    if (mode === 'edit') {
-      setScrollY(0); // Reset scroll when starting
-      setMode('present');
-    } else {
-      setMode('edit');
-    }
+  const startSolo = () => {
+    setScrollY(0);
+    setMode('present');
+  };
+
+  const startMeeting = () => {
+    setScrollY(0);
+    setMode('meeting');
+  };
+
+  const stopSession = () => {
+    setMode('edit');
   };
 
   return (
     <div className="app-container">
       
-      {/* LIVE CAMERA BACKGROUND */}
-      <video ref={videoRef} autoPlay playsInline muted className="master-camera" />
+      {/* =========================================
+          BACKGROUND LAYER (Meeting or Solo)
+          ========================================= */}
+      {mode === 'meeting' && (
+        <div className="meeting-background">
+          <div className="meeting-placeholder">
+            <span>Incoming Screen Share / Participant Feed</span>
+          </div>
+        </div>
+      )}
+
+      {/* LIVE CAMERA */}
+      <video 
+        ref={videoRef} 
+        autoPlay 
+        playsInline 
+        muted 
+        className={`master-camera ${mode === 'meeting' ? 'pip' : ''}`} 
+      />
       
-      {/* DARK OVERLAY FOR CONTRAST */}
-      <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
+      {/* DARK OVERLAY FOR CONTRAST (Only applies to full screen video) */}
+      {mode !== 'meeting' && (
+        <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
+      )}
 
       {/* =========================================
-          MODE 1: EDIT & SETUP (Vibrant & Clean)
+          MODE 1: EDIT & SETUP
           ========================================= */}
       {mode === 'edit' && (
         <div className="setup-dashboard">
@@ -119,9 +145,9 @@ const PromptR = () => {
       )}
 
       {/* =========================================
-          MODE 2: PRESENTER (Minimalist)
+          MODE 2 & 3: TELEPROMPTER ENGINE
           ========================================= */}
-      {mode === 'present' && (
+      {isActive && (
         <div className="presenter-engine">
           <div className="target-eyeline">
             <div className="glow-bar"></div>
@@ -146,17 +172,29 @@ const PromptR = () => {
 
       {/* --- PREMIUM BOTTOM DOCK --- */}
       <div className="premium-dock">
-        <button 
-          className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
-          onClick={() => setIsRecording(!isRecording)}
-        >
-          <span className="dot"></span>
-          {isRecording ? 'Stop Recording' : 'Record'}
-        </button>
-
-        <button className={`dock-btn primary-action ${mode === 'present' ? 'stop-action' : ''}`} onClick={toggleMode}>
-          {mode === 'edit' ? '▶ Start Teleprompter' : '⏹ End Presentation'}
-        </button>
+        {mode === 'edit' ? (
+          <>
+            <button className="dock-btn primary-action" onClick={startSolo}>
+              ▶ Present (Solo)
+            </button>
+            <button className="dock-btn meeting-action" onClick={startMeeting}>
+              👥 Join Meeting
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
+              onClick={() => setIsRecording(!isRecording)}
+            >
+              <span className="dot"></span>
+              {isRecording ? 'Stop Recording' : 'Record'}
+            </button>
+            <button className="dock-btn primary-action stop-action" onClick={stopSession}>
+              ⏹ End Session
+            </button>
+          </>
+        )}
       </div>
 
     </div>
