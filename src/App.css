@@ -1,102 +1,289 @@
-/* =========================================
-   LANDING PAGE STYLES
-   ========================================= */
-.landing-screen {
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* --- 1. BASE RESET & PERFECT CENTERING --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  /* Prevent tap highlighting on mobile */
+  -webkit-tap-highlight-color: transparent; 
+}
+
+body {
+  background-color: #050505;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Absolute Horizontal Center */
+  justify-content: center; /* Absolute Vertical Center */
+}
+
+/* --- 2. CAMERA & BACKGROUNDS --- */
+.master-camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  transform: scaleX(-1);
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* PIP Mode adapted for iPads/Mobile */
+.master-camera.pip {
+  width: 160px; 
+  height: 220px;
+  bottom: 120px; 
+  right: 20px; 
+  top: auto; 
+  left: auto;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+  z-index: 10;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  transition: backdrop-filter 0.5s ease, background 0.5s ease;
+}
+
+.heavy-dim {
+  background: rgba(5, 5, 10, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.light-dim {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.1) 30%, rgba(0,0,0,0.9) 100%);
+}
+
+/* --- 3. CENTERING WRAPPERS (MOBILE FIRST) --- */
+.centered-wrapper {
+  position: absolute;
+  inset: 0;
   z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem;
-  text-align: center;
-  max-width: 800px;
-  animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.logo {
-  font-size: 4rem;
-  font-weight: 800;
-  letter-spacing: -2px;
-  color: #ffffff;
-  margin-bottom: 0.5rem;
-}
-
-.logo .accent {
-  color: #38bdf8; /* Vibrant Blue/Green Accent */
-}
-
-.subtitle {
-  font-size: 1.2rem;
-  color: #94a3b8;
-  margin-bottom: 3rem;
-  font-weight: 500;
-}
-
-.landing-actions {
-  display: flex;
-  gap: 1.5rem;
   width: 100%;
-  justify-content: center;
 }
 
-/* Massive, modern buttons for the landing screen */
-.btn-huge {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 1.5rem 2rem;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 300px;
+.scrollable-wrapper {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding: 2rem 1rem;
+  /* Hide scrollbars for clean look */
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
 }
+.scrollable-wrapper::-webkit-scrollbar { display: none; }
 
-.btn-huge:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-}
-
-.btn-huge .icon {
-  font-size: 2.5rem;
-}
-
-.btn-huge .btn-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.btn-huge .btn-text strong {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.btn-huge .btn-text span {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #38bdf8, #818cf8);
-  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
-}
-
-.btn-secondary {
+/* Universal iOS Glass Panel */
+.glass-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-radius: 32px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px; /* Constrains width on iPad/Desktop */
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centers all content inside the card */
+  text-align: center;
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+/* --- 4. LANDING PAGE --- */
+.ambient-glow {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%);
+  filter: blur(80px);
+  z-index: -1;
+  pointer-events: none;
 }
+
+.landing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  padding: 0 1.5rem;
+}
+
+.premium-logo {
+  font-size: 3.5rem;
+  font-weight: 800;
+  letter-spacing: -2px;
+  margin-bottom: 0.5rem;
+}
+.premium-logo .accent { color: #38bdf8; }
+
+.premium-subtitle {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  margin-bottom: 3rem;
+}
+
+.mobile-stacked-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.interactive-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  padding: 1.5rem;
+}
+.interactive-card:active { transform: scale(0.96); } /* Mobile tap feedback */
+
+.card-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+.interactive-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+.interactive-card p { font-size: 0.9rem; color: #94a3b8; }
+
+/* --- 5. SETUP DASHBOARD --- */
+.setup-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.gradient-text {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1.5rem;
+}
+
+.premium-textarea {
+  width: 100%;
+  height: 180px; /* Tall enough for easy iPad typing */
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  text-align: center; /* Keeps typed text perfectly centered */
+}
+.premium-textarea:focus { border-color: #38bdf8; }
+
+/* TOUCH-FRIENDLY SLIDERS */
+.section-title { font-size: 1.2rem; margin-bottom: 1.5rem; color: #ffffff; }
+.slider-group { width: 100%; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
+.slider-header { display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+.slider-header span { color: #38bdf8; font-weight: 800; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 10px; /* Thicker track for mobile thumbs */
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 30px; /* Massive thumb for easy tapping */
+  height: 30px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+}
+
+.bottom-padding-spacer { height: 120px; width: 100%; } /* Prevents dock overlap */
+
+/* --- 6. TELEPROMPTER ENGINE --- */
+.presenter-engine { position: absolute; inset: 0; z-index: 10; display: flex; justify-content: center; }
+.target-eyeline { position: absolute; top: 15%; width: 100%; display: flex; justify-content: center; z-index: 15; }
+.glow-bar { width: 60%; max-width: 300px; height: 3px; background: #38bdf8; box-shadow: 0 0 20px #38bdf8; border-radius: 3px; }
+
+.scrolling-canvas { width: 100%; display: flex; justify-content: center; mask-image: linear-gradient(transparent 5%, black 15%, black 60%, transparent 95%); -webkit-mask-image: linear-gradient(transparent 5%, black 15%, black 60%, transparent 95%); }
+.scrolling-text { text-align: center; white-space: pre-wrap; padding: 0 1rem; font-weight: 800; color: #ffffff; text-shadow: 0px 4px 20px rgba(0,0,0,1); will-change: transform; }
+.spacer-top { height: 15vh; }
+.spacer-bottom { height: 80vh; }
+
+/* --- 7. FLOATING MOBILE DOCK --- */
+.floating-dock-container {
+  position: absolute;
+  bottom: 30px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 30;
+  padding: 0 1rem;
+}
+
+.premium-dock {
+  display: flex;
+  gap: 1rem;
+  background: rgba(15, 15, 20, 0.75);
+  padding: 0.75rem;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  width: 100%;
+  max-width: 400px;
+  justify-content: space-between; /* Spreads buttons evenly */
+}
+
+.dock-btn {
+  flex: 1; /* Makes buttons equal width */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.2rem 1rem; /* Taller padding for mobile taps */
+  border-radius: 100px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.secondary-btn { background: transparent; color: #e2e8f0; }
+.secondary-btn:active { background: rgba(255, 255, 255, 0.1); }
+
+.primary-action { background: linear-gradient(135deg, #38bdf8, #818cf8); color: #ffffff; box-shadow: 0 4px 15px rgba(129, 140, 248, 0.4); }
+.primary-action:active { transform: scale(0.95); }
+
+.record-btn { background: rgba(255, 255, 255, 0.05); color: #ffffff; }
+.record-btn .dot { width: 14px; height: 14px; background: #ef4444; border-radius: 50%; }
+.record-btn.is-recording { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.record-btn.is-recording .dot { box-shadow: 0 0 12px #ef4444; animation: pulse 1s infinite; }

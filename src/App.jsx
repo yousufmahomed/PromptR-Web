@@ -2,14 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css'; 
 
 const PromptR = () => {
-  // --- CAMERA & SCROLL REFS ---
   const videoRef = useRef(null);
   const requestRef = useRef();
 
   // --- APP STATE ---
-  // Flow: 'landing' -> 'setup' -> ('present' OR 'meeting')
   const [mode, setMode] = useState('landing'); 
-  const [targetSession, setTargetSession] = useState('present'); // Remembers what they picked on the landing screen
+  const [targetSession, setTargetSession] = useState('present'); 
   const [isRecording, setIsRecording] = useState(false);
   
   // --- TELEPROMPTER SETTINGS ---
@@ -78,12 +76,12 @@ const PromptR = () => {
     <div className="app-container">
       
       {/* =========================================
-          BACKGROUND LAYER (Meeting or Solo)
+          BACKGROUND LAYER
           ========================================= */}
       {mode === 'meeting' && (
         <div className="meeting-background">
           <div className="meeting-placeholder">
-            <span>Incoming Screen Share / Participant Feed</span>
+            <span>Participant Feed</span>
           </div>
         </div>
       )}
@@ -97,86 +95,91 @@ const PromptR = () => {
         className={`master-camera ${mode === 'meeting' ? 'pip' : ''}`} 
       />
       
-      {/* DARK OVERLAY FOR CONTRAST */}
+      {/* MOBILE DARK OVERLAY FOR TEXT CONTRAST */}
       {mode !== 'meeting' && (
         <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
       )}
 
       {/* =========================================
-          SCREEN 1: THE MODERN LANDING PAGE
+          SCREEN 1: MOBILE-CENTERED LANDING
           ========================================= */}
       {mode === 'landing' && (
-        <div className="landing-screen glass-panel">
-          <h1 className="logo">Prompt<span className="accent">R</span></h1>
-          <p className="subtitle">Deliver flawless pitches without ever breaking eye contact.</p>
-          
-          <div className="landing-actions">
-            <button className="btn-huge btn-primary" onClick={() => selectMode('present')}>
-              <span className="icon">🎙️</span>
-              <div className="btn-text">
-                <strong>Standard Mode</strong>
-                <span>Record Solo Pitch</span>
-              </div>
-            </button>
+        <div className="centered-wrapper">
+          <div className="ambient-glow"></div>
+          <div className="landing-content">
+            <h1 className="premium-logo">Prompt<span className="accent">R</span></h1>
+            <p className="premium-subtitle">Flawless pitches. Total eye contact.</p>
             
-            <button className="btn-huge btn-secondary" onClick={() => selectMode('meeting')}>
-              <span className="icon">👥</span>
-              <div className="btn-text">
-                <strong>Meeting Mode</strong>
-                <span>Live Call with PIP</span>
+            <div className="mobile-stacked-cards">
+              <div className="glass-card interactive-card" onClick={() => selectMode('present')}>
+                <div className="card-icon blue-glow">🎙️</div>
+                <h3>Standard Mode</h3>
+                <p>Record solo pitches with a full-screen prompter.</p>
               </div>
-            </button>
+              
+              <div className="glass-card interactive-card" onClick={() => selectMode('meeting')}>
+                <div className="card-icon purple-glow">👥</div>
+                <h3>Meeting Mode</h3>
+                <p>Join live calls with a floating PIP camera.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* =========================================
-          SCREEN 2: SETUP DASHBOARD
+          SCREEN 2: MOBILE-FIRST SETUP DASHBOARD
           ========================================= */}
       {mode === 'setup' && (
-        <div className="setup-dashboard">
-          <div className="glass-panel editor-panel">
-            <h2 className="gradient-text">Prepare Your Pitch</h2>
-            <textarea 
-              className="premium-textarea"
-              value={scriptText}
-              onChange={(e) => setScriptText(e.target.value)}
-              placeholder="Paste your script here to get started..."
-            />
-          </div>
-
-          <div className="glass-panel settings-panel">
-            <h3 className="section-title">Display Settings</h3>
+        <div className="centered-wrapper scrollable-wrapper">
+          <div className="setup-stack">
             
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Text Width (Eye-Line)</label>
-                <span>{textWidth}px</span>
-              </div>
-              <input type="range" min="200" max="800" value={textWidth} onChange={(e) => setTextWidth(Number(e.target.value))} />
+            <div className="glass-card">
+              <h2 className="gradient-text">Your Pitch</h2>
+              <textarea 
+                className="premium-textarea"
+                value={scriptText}
+                onChange={(e) => setScriptText(e.target.value)}
+                placeholder="Tap here to paste your script..."
+              />
             </div>
 
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Scroll Speed</label>
-                <span>{scrollSpeed}x</span>
+            <div className="glass-card">
+              <h3 className="section-title">Adjust Display</h3>
+              
+              <div className="slider-group">
+                <div className="slider-header">
+                  <label>Eye-Line Width</label>
+                  <span>{textWidth}px</span>
+                </div>
+                <input type="range" min="200" max="800" value={textWidth} onChange={(e) => setTextWidth(Number(e.target.value))} />
               </div>
-              <input type="range" min="1" max="10" value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} />
+
+              <div className="slider-group">
+                <div className="slider-header">
+                  <label>Scroll Speed</label>
+                  <span>{scrollSpeed}x</span>
+                </div>
+                <input type="range" min="1" max="10" value={scrollSpeed} onChange={(e) => setScrollSpeed(Number(e.target.value))} />
+              </div>
+
+              <div className="slider-group">
+                <div className="slider-header">
+                  <label>Font Size</label>
+                  <span>{fontSize}px</span>
+                </div>
+                <input type="range" min="24" max="96" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} />
+              </div>
             </div>
 
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Font Size</label>
-                <span>{fontSize}px</span>
-              </div>
-              <input type="range" min="24" max="96" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} />
-            </div>
+            {/* Empty space so the bottom dock doesn't cover content on small phones */}
+            <div className="bottom-padding-spacer"></div> 
           </div>
         </div>
       )}
 
       {/* =========================================
-          SCREEN 3: ACTIVE TELEPROMPTER ENGINE
+          SCREEN 3: ACTIVE TELEPROMPTER
           ========================================= */}
       {isActive && (
         <div className="presenter-engine">
@@ -194,7 +197,7 @@ const PromptR = () => {
               }}
             >
               <div className="spacer-top"></div>
-              {scriptText || "You forgot to paste your script!"}
+              {scriptText || "No script entered."}
               <div className="spacer-bottom"></div>
             </div>
           </div>
@@ -202,33 +205,35 @@ const PromptR = () => {
       )}
 
       {/* =========================================
-          BOTTOM CONTROLS DOCK
+          FLOATING BOTTOM DOCK (Mobile Friendly)
           ========================================= */}
       {mode !== 'landing' && (
-        <div className="premium-dock">
-          {mode === 'setup' ? (
-            <>
-              <button className="dock-btn" onClick={() => setMode('landing')}>
-                ⬅ Back
-              </button>
-              <button className="dock-btn primary-action" onClick={launchSession}>
-                ▶ Launch {targetSession === 'present' ? 'Standard' : 'Meeting'} Mode
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
-                onClick={() => setIsRecording(!isRecording)}
-              >
-                <span className="dot"></span>
-                {isRecording ? 'Stop Recording' : 'Record'}
-              </button>
-              <button className="dock-btn primary-action stop-action" onClick={endSession}>
-                ⏹ End Session
-              </button>
-            </>
-          )}
+        <div className="floating-dock-container">
+          <div className="premium-dock">
+            {mode === 'setup' ? (
+              <>
+                <button className="dock-btn secondary-btn" onClick={() => setMode('landing')}>
+                  Back
+                </button>
+                <button className="dock-btn primary-action" onClick={launchSession}>
+                  Launch Mode
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
+                  onClick={() => setIsRecording(!isRecording)}
+                >
+                  <span className="dot"></span>
+                  {isRecording ? 'Stop' : 'Record'}
+                </button>
+                <button className="dock-btn secondary-btn stop-action" onClick={endSession}>
+                  End
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
