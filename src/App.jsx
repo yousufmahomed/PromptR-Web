@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
 import './App.css'; 
 
 const PromptR = () => {
+  // --- CAMERA, RECORDING & SCROLL REFS ---
   const videoRef = useRef(null);
   const requestRef = useRef();
+  const mediaRecorderRef = useRef(null);
 
   // --- APP STATE ---
   const [mode, setMode] = useState('landing'); 
   const [targetSession, setTargetSession] = useState('present'); 
   const [isRecording, setIsRecording] = useState(false);
+  const [isConverting, setIsConverting] = useState(false); // NEW: Processing state
   
   // --- TELEPROMPTER SETTINGS ---
   const [fontSize, setFontSize] = useState(48); 
@@ -56,7 +61,68 @@ const PromptR = () => {
     return () => cancelAnimationFrame(requestRef.current);
   }, [isActive, scrollSpeed]);
 
-  // --- 3. NAVIGATION HANDLERS ---
+  // --- 3. MP4 CONVERSION LOGIC ---
+  const convertToMp4 = async (webmBlob) => {
+    setIsConverting(true);
+    try {
+      const ffmpeg = new FFmpeg();
+      await ffmpeg.load();
+      
+      // Write WebM to FFmpeg memory, convert to MP4, and read it back
+      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+      await ffmpeg.exec(['-i', 'input.webm', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      
+      // Trigger MP4 Download
+      const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(mp4Blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'PromptR_Pitch.mp4';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("MP4 Conversion failed (Likely missing Server Headers). Falling back to WebM.", err);
+      // FALLBACK: Download WebM if FFmpeg fails
+      const url = URL.createObjectURL(webmBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'PromptR_Pitch_Fallback.webm';
+      a.click();
+    }
+    setIsConverting(false);
+  };
+
+  // --- 4. RECORDING HANDLERS ---
+  const toggleRecording = () => {
+    if (isRecording) {
+      // Stop Recording
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      // Start Recording
+      const stream = videoRef.current.srcObject;
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      let localChunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) localChunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const webmBlob = new Blob(localChunks, { type: 'video/webm' });
+        await convertToMp4(webmBlob);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    }
+  };
+
+  // --- 5. NAVIGATION HANDLERS ---
   const selectMode = (type) => {
     setTargetSession(type);
     setMode('setup');
@@ -69,15 +135,12 @@ const PromptR = () => {
 
   const endSession = () => {
     setMode('landing');
-    setIsRecording(false);
+    if (isRecording) toggleRecording(); // Auto-stop recording if they exit
   };
 
   return (
     <div className="app-container">
       
-      {/* =========================================
-          BACKGROUND LAYER
-          ========================================= */}
       {mode === 'meeting' && (
         <div className="meeting-background">
           <div className="meeting-placeholder">
@@ -86,7 +149,6 @@ const PromptR = () => {
         </div>
       )}
 
-      {/* LIVE CAMERA */}
       <video 
         ref={videoRef} 
         autoPlay 
@@ -95,14 +157,11 @@ const PromptR = () => {
         className={`master-camera ${mode === 'meeting' ? 'pip' : ''}`} 
       />
       
-      {/* MOBILE DARK OVERLAY FOR TEXT CONTRAST */}
       {mode !== 'meeting' && (
         <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
       )}
 
-      {/* =========================================
-          SCREEN 1: MOBILE-CENTERED LANDING
-          ========================================= */}
+      {/* --- LANDING PAGE --- */}
       {mode === 'landing' && (
         <div className="centered-wrapper">
           <div className="ambient-glow"></div>
@@ -127,9 +186,7 @@ const PromptR = () => {
         </div>
       )}
 
-      {/* =========================================
-          SCREEN 2: MOBILE-FIRST SETUP DASHBOARD
-          ========================================= */}
+      {/* --- SETUP DASHBOARD --- */}
       {mode === 'setup' && (
         <div className="centered-wrapper scrollable-wrapper">
           <div className="setup-stack">
@@ -172,15 +229,12 @@ const PromptR = () => {
               </div>
             </div>
 
-            {/* Empty space so the bottom dock doesn't cover content on small phones */}
             <div className="bottom-padding-spacer"></div> 
           </div>
         </div>
       )}
 
-      {/* =========================================
-          SCREEN 3: ACTIVE TELEPROMPTER
-          ========================================= */}
+      {/* --- ACTIVE TELEPROMPTER --- */}
       {isActive && (
         <div className="presenter-engine">
           <div className="target-eyeline">
@@ -204,9 +258,7 @@ const PromptR = () => {
         </div>
       )}
 
-      {/* =========================================
-          FLOATING BOTTOM DOCK (Mobile Friendly)
-          ========================================= */}
+      {/* --- FLOATING DOCK --- */}
       {mode !== 'landing' && (
         <div className="floating-dock-container">
           <div className="premium-dock">
@@ -223,10 +275,17 @@ const PromptR = () => {
               <>
                 <button 
                   className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
-                  onClick={() => setIsRecording(!isRecording)}
+                  onClick={toggleRecording}
+                  disabled={isConverting}
                 >
-                  <span className="dot"></span>
-                  {isRecording ? 'Stop' : 'Record'}
+                  {isConverting ? (
+                    'Processing...'
+                  ) : (
+                    <>
+                      <span className="dot"></span>
+                      {isRecording ? 'Stop' : 'Record'}
+                    </>
+                  )}
                 </button>
                 <button className="dock-btn secondary-btn stop-action" onClick={endSession}>
                   End
