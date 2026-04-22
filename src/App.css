@@ -1,59 +1,102 @@
-/* --- PICTURE IN PICTURE (MEETING MODE) --- */
-.master-camera {
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.master-camera.pip {
-  width: 280px; 
-  height: 160px;
-  bottom: 120px; 
-  right: 40px; 
-  top: auto; 
-  left: auto;
-  border-radius: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
-  z-index: 10;
-}
-
-/* --- MEETING BACKGROUND PLACEHOLDER --- */
-.meeting-background {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, #1e1e24 0%, #000000 100%);
-  z-index: 0;
+/* =========================================
+   LANDING PAGE STYLES
+   ========================================= */
+.landing-screen {
+  position: relative;
+  z-index: 20;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 4rem;
+  text-align: center;
+  max-width: 800px;
+  animation: fadeIn 0.5s ease;
 }
 
-.meeting-placeholder {
-  width: 80%;
-  height: 70%;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.meeting-placeholder span {
-  color: #64748b;
-  font-size: 1.2rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-/* --- MEETING BUTTON STYLING --- */
-.meeting-action {
-  background: rgba(139, 92, 246, 0.2);
-  color: #c4b5fd;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.meeting-action:hover {
-  background: rgba(139, 92, 246, 0.4);
+.logo {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -2px;
   color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.logo .accent {
+  color: #38bdf8; /* Vibrant Blue/Green Accent */
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #94a3b8;
+  margin-bottom: 3rem;
+  font-weight: 500;
+}
+
+.landing-actions {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Massive, modern buttons for the landing screen */
+.btn-huge {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem 2rem;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 300px;
+}
+
+.btn-huge:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.btn-huge .icon {
+  font-size: 2.5rem;
+}
+
+.btn-huge .btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.btn-huge .btn-text strong {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.btn-huge .btn-text span {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }

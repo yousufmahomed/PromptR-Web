@@ -7,8 +7,10 @@ const PromptR = () => {
   const requestRef = useRef();
 
   // --- APP STATE ---
+  // Flow: 'landing' -> 'setup' -> ('present' OR 'meeting')
+  const [mode, setMode] = useState('landing'); 
+  const [targetSession, setTargetSession] = useState('present'); // Remembers what they picked on the landing screen
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState('edit'); // 'edit' | 'present' | 'meeting'
   
   // --- TELEPROMPTER SETTINGS ---
   const [fontSize, setFontSize] = useState(48); 
@@ -56,19 +58,20 @@ const PromptR = () => {
     return () => cancelAnimationFrame(requestRef.current);
   }, [isActive, scrollSpeed]);
 
-  // --- 3. MODE HANDLERS ---
-  const startSolo = () => {
-    setScrollY(0);
-    setMode('present');
+  // --- 3. NAVIGATION HANDLERS ---
+  const selectMode = (type) => {
+    setTargetSession(type);
+    setMode('setup');
   };
 
-  const startMeeting = () => {
+  const launchSession = () => {
     setScrollY(0);
-    setMode('meeting');
+    setMode(targetSession);
   };
 
-  const stopSession = () => {
-    setMode('edit');
+  const endSession = () => {
+    setMode('landing');
+    setIsRecording(false);
   };
 
   return (
@@ -94,15 +97,43 @@ const PromptR = () => {
         className={`master-camera ${mode === 'meeting' ? 'pip' : ''}`} 
       />
       
-      {/* DARK OVERLAY FOR CONTRAST (Only applies to full screen video) */}
+      {/* DARK OVERLAY FOR CONTRAST */}
       {mode !== 'meeting' && (
         <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
       )}
 
       {/* =========================================
-          MODE 1: EDIT & SETUP
+          SCREEN 1: THE MODERN LANDING PAGE
           ========================================= */}
-      {mode === 'edit' && (
+      {mode === 'landing' && (
+        <div className="landing-screen glass-panel">
+          <h1 className="logo">Prompt<span className="accent">R</span></h1>
+          <p className="subtitle">Deliver flawless pitches without ever breaking eye contact.</p>
+          
+          <div className="landing-actions">
+            <button className="btn-huge btn-primary" onClick={() => selectMode('present')}>
+              <span className="icon">🎙️</span>
+              <div className="btn-text">
+                <strong>Standard Mode</strong>
+                <span>Record Solo Pitch</span>
+              </div>
+            </button>
+            
+            <button className="btn-huge btn-secondary" onClick={() => selectMode('meeting')}>
+              <span className="icon">👥</span>
+              <div className="btn-text">
+                <strong>Meeting Mode</strong>
+                <span>Live Call with PIP</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================
+          SCREEN 2: SETUP DASHBOARD
+          ========================================= */}
+      {mode === 'setup' && (
         <div className="setup-dashboard">
           <div className="glass-panel editor-panel">
             <h2 className="gradient-text">Prepare Your Pitch</h2>
@@ -145,7 +176,7 @@ const PromptR = () => {
       )}
 
       {/* =========================================
-          MODE 2 & 3: TELEPROMPTER ENGINE
+          SCREEN 3: ACTIVE TELEPROMPTER ENGINE
           ========================================= */}
       {isActive && (
         <div className="presenter-engine">
@@ -170,32 +201,36 @@ const PromptR = () => {
         </div>
       )}
 
-      {/* --- PREMIUM BOTTOM DOCK --- */}
-      <div className="premium-dock">
-        {mode === 'edit' ? (
-          <>
-            <button className="dock-btn primary-action" onClick={startSolo}>
-              ▶ Present (Solo)
-            </button>
-            <button className="dock-btn meeting-action" onClick={startMeeting}>
-              👥 Join Meeting
-            </button>
-          </>
-        ) : (
-          <>
-            <button 
-              className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
-              onClick={() => setIsRecording(!isRecording)}
-            >
-              <span className="dot"></span>
-              {isRecording ? 'Stop Recording' : 'Record'}
-            </button>
-            <button className="dock-btn primary-action stop-action" onClick={stopSession}>
-              ⏹ End Session
-            </button>
-          </>
-        )}
-      </div>
+      {/* =========================================
+          BOTTOM CONTROLS DOCK
+          ========================================= */}
+      {mode !== 'landing' && (
+        <div className="premium-dock">
+          {mode === 'setup' ? (
+            <>
+              <button className="dock-btn" onClick={() => setMode('landing')}>
+                ⬅ Back
+              </button>
+              <button className="dock-btn primary-action" onClick={launchSession}>
+                ▶ Launch {targetSession === 'present' ? 'Standard' : 'Meeting'} Mode
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
+                onClick={() => setIsRecording(!isRecording)}
+              >
+                <span className="dot"></span>
+                {isRecording ? 'Stop Recording' : 'Record'}
+              </button>
+              <button className="dock-btn primary-action stop-action" onClick={endSession}>
+                ⏹ End Session
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
     </div>
   );
