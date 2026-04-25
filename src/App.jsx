@@ -6,7 +6,7 @@ import './App.css';
 const PromptR = () => {
   // --- CAMERA, RECORDING & SCROLL REFS ---
   const videoRef = useRef(null);
-  const canvasRef = useRef(null); // HIDDEN CANVAS FOR WATERMARK
+  const canvasRef = useRef(null); 
   const requestRef = useRef();
   const mediaRecorderRef = useRef(null);
 
@@ -174,6 +174,11 @@ const PromptR = () => {
   const launchSession = () => {
     setScrollY(0);
     setMode(targetSession);
+    
+    // NEW: Auto-start recording if launching Standard Mode
+    if (targetSession === 'present' && !isRecording) {
+      toggleRecording();
+    }
   };
 
   const endSession = () => {
