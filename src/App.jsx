@@ -6,6 +6,7 @@ import './App.css';
 const PromptR = () => {
   // --- CAMERA, RECORDING & SCROLL REFS ---
   const videoRef = useRef(null);
+  const canvasRef = useRef(null); // HIDDEN CANVAS FOR WATERMARK
   const requestRef = useRef();
   const mediaRecorderRef = useRef(null);
 
@@ -13,7 +14,7 @@ const PromptR = () => {
   const [mode, setMode] = useState('landing'); 
   const [targetSession, setTargetSession] = useState('present'); 
   const [isRecording, setIsRecording] = useState(false);
-  const [isConverting, setIsConverting] = useState(false); // NEW: Processing state
+  const [isConverting, setIsConverting] = useState(false); 
   
   // --- TELEPROMPTER SETTINGS ---
   const [fontSize, setFontSize] = useState(48); 
@@ -95,16 +96,56 @@ const PromptR = () => {
     setIsConverting(false);
   };
 
-  // --- 4. RECORDING HANDLERS ---
+  // --- 4. RECORDING HANDLERS WITH WATERMARK ---
   const toggleRecording = () => {
     if (isRecording) {
       // Stop Recording
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     } else {
-      // Start Recording
-      const stream = videoRef.current.srcObject;
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      // Start Recording with Watermark
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      // Set canvas size to match the HD camera feed
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+
+      // The loop that draws the video + watermark 30 times a second
+      const drawFrame = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          // 1. Draw the camera feed
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // 2. Draw the Watermark
+          ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; // Semi-transparent white
+          ctx.font = "bold 24px 'Plus Jakarta Sans', sans-serif";
+          ctx.textAlign = "right";
+          
+          // Add drop shadow to make it visible on light backgrounds
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 2;
+
+          // Position in the bottom right corner
+          ctx.fillText("PromptR.net", canvas.width - 30, canvas.height - 30);
+          
+          requestAnimationFrame(drawFrame);
+        }
+      };
+
+      // Capture the canvas at 30 FPS instead of the raw video stream
+      const watermarkedStream = canvas.captureStream(30);
+      
+      // Include audio from the original camera stream
+      const audioTracks = video.srcObject.getAudioTracks();
+      if (audioTracks.length > 0) {
+        watermarkedStream.addTrack(audioTracks[0]);
+      }
+
+      const recorder = new MediaRecorder(watermarkedStream, { mimeType: 'video/webm' });
       let localChunks = [];
 
       recorder.ondataavailable = (e) => {
@@ -113,12 +154,14 @@ const PromptR = () => {
 
       recorder.onstop = async () => {
         const webmBlob = new Blob(localChunks, { type: 'video/webm' });
-        await convertToMp4(webmBlob);
+        // It will pass this watermarked blob to your FFmpeg MP4 converter
+        await convertToMp4(webmBlob); 
       };
 
       mediaRecorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
+      drawFrame(); // Kick off the watermark loop
     }
   };
 
@@ -155,6 +198,12 @@ const PromptR = () => {
         playsInline 
         muted 
         className={`master-camera ${mode === 'meeting' ? 'pip' : ''}`} 
+      />
+
+      {/* HIDDEN CANVAS FOR WATERMARKING */}
+      <canvas 
+        ref={canvasRef} 
+        style={{ display: 'none' }} 
       />
       
       {mode !== 'meeting' && (
