@@ -28,6 +28,7 @@ const PromptR = () => {
   // --- REVIEW STATE ---
   const [reviewUrl, setReviewUrl] = useState(null);
   const [rawVideoBlob, setRawVideoBlob] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle'); // NEW: 'idle' | 'processing' | 'saved'
 
   // --- NOTIFICATIONS ---
   const [toastMessage, setToastMessage] = useState(null);
@@ -93,6 +94,7 @@ const PromptR = () => {
   const uploadAndConvert = async () => {
     if (!rawVideoBlob) return;
     setIsConverting(true); 
+    setSaveStatus('processing');
     
     const formData = new FormData();
     formData.append('file', rawVideoBlob);
@@ -117,6 +119,7 @@ const PromptR = () => {
       // 3. Trigger Native Download
       window.open(finalMp4Url, '_blank'); 
       triggerToast("✅ Video saved to your Downloads folder!");
+      setSaveStatus('saved'); // Triggers the success UI!
       
     } catch (err) {
       console.error("Cloud API Error. Falling back to local WebM.", err);
@@ -124,12 +127,10 @@ const PromptR = () => {
       const backupUrl = URL.createObjectURL(rawVideoBlob);
       window.open(backupUrl, '_blank');
       triggerToast("⚠️ Cloud error. Saved locally instead.");
+      setSaveStatus('saved');
     }
 
     setIsConverting(false);
-    setReviewUrl(null);
-    setRawVideoBlob(null);
-    setMode('setup'); // Send back to start after saving
   };
 
 
@@ -160,7 +161,7 @@ const PromptR = () => {
           const showWatermark = tier === 'free' || (tier === 'creator' && !removeWatermarkAddon);
           
           if (showWatermark) {
-            // Free = 24px (100%), Creator = 12px (50%)
+            // Free = 24px (100%), Creator = 14px (~60%)
             const watermarkSize = tier === 'free' ? 24 : 14; 
             const opacity = tier === 'free' ? '0.6' : '0.4'; // Slightly more transparent for creators
             
@@ -198,6 +199,7 @@ const PromptR = () => {
         const finalBlob = new Blob(localChunks, { type: 'video/webm' });
         setRawVideoBlob(finalBlob);
         setReviewUrl(URL.createObjectURL(finalBlob));
+        setSaveStatus('idle'); // Ensure it resets to idle when a new video is taken
         setMode('review'); 
       };
 
@@ -320,25 +322,57 @@ const PromptR = () => {
       {mode === 'review' && (
         <div className="centered-wrapper">
           <div className="glass-card">
-            <h2 className="gradient-text">Review Your Take</h2>
-            <video src={reviewUrl} controls autoPlay className="review-player" />
             
-            <div className="dock-btn-group" style={{ marginTop: '1rem' }}>
-              <button 
-                className="dock-btn secondary-btn" 
-                onClick={() => { setReviewUrl(null); setRawVideoBlob(null); setMode('setup'); }}
-                disabled={isConverting}
-              >
-                Discard
-              </button>
-              <button 
-                className="dock-btn primary-action" 
-                onClick={uploadAndConvert}
-                disabled={isConverting}
-              >
-                {isConverting ? 'Processing...' : 'Save & Download'}
-              </button>
-            </div>
+            {saveStatus === 'saved' ? (
+              <>
+                <h2 className="gradient-text">Take Saved! 🎉</h2>
+                <p style={{ color: '#94a3b8', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                  Your video has been securely saved to your device's <strong>Downloads</strong> folder.
+                </p>
+                <div className="tier-options">
+                  <button className="tier-btn primary-action" onClick={() => {
+                    setSaveStatus('idle'); 
+                    setReviewUrl(null); 
+                    setRawVideoBlob(null);
+                    setScrollY(0); 
+                    setMode('present'); 
+                  }}>
+                    <strong>🎬 Record Another Take</strong>
+                  </button>
+                  <button className="tier-btn" onClick={() => {
+                    setSaveStatus('idle'); 
+                    setReviewUrl(null); 
+                    setRawVideoBlob(null);
+                    setMode('setup'); 
+                  }}>
+                    <strong>📝 Edit Script</strong>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="gradient-text">Review Your Take</h2>
+                <video src={reviewUrl} controls autoPlay className="review-player" />
+                
+                <div className="dock-btn-group" style={{ marginTop: '1rem' }}>
+                  <button 
+                    className="dock-btn secondary-btn" 
+                    onClick={() => { setReviewUrl(null); setRawVideoBlob(null); setMode('setup'); }}
+                    disabled={isConverting}
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    className="dock-btn primary-action" 
+                    onClick={uploadAndConvert}
+                    disabled={isConverting}
+                  >
+                    {isConverting ? 'Processing...' : 'Save & Download'}
+                  </button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
