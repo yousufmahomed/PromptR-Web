@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String     @id @default(uuid())
+  email      String     @unique
+  googleId   String     @unique @map("google_id")
+  name       String?
+  tier       String     @default("free")
+  videoCount Int        @default(0) @map("video_count")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  purchases  Purchase[]
+
+  @@map("users")
+}
+
+model Purchase {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  tier          String
+  amount        Int      // amount in cents
+  paymentMethod String   @map("payment_method") // 'yoco' | 'google_play'
+  transactionId String?  @map("transaction_id")
+  status        String   @default("pending") // 'pending' | 'completed' | 'failed'
+  createdAt     DateTime @default(now()) @map("created_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("purchases")
+}
