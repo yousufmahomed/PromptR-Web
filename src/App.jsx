@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
+import { Capacitor } from '@capacitor/core';
 import './App.css'; 
 
 const PromptR = () => {
@@ -11,12 +10,13 @@ const PromptR = () => {
   const mediaRecorderRef = useRef(null);
 
   // --- APP STATE & MONETIZATION ---
-  const [mode, setMode] = useState('landing'); // 'landing' | 'setup' | 'present' | 'paywall'
+  const [mode, setMode] = useState('landing'); // 'landing' | 'setup' | 'present' | 'review' | 'paywall'
   const [isRecording, setIsRecording] = useState(false);
   const [isConverting, setIsConverting] = useState(false); 
   
-  // Tiers: 'free' | 'creator' | 'pro'
-  const [tier, setTier] = useState('free'); 
+  // Tiers & Add-ons
+  const [tier, setTier] = useState('free'); // 'free' | 'creator' | 'pro'
+  const [removeWatermarkAddon, setRemoveWatermarkAddon] = useState(false); // The $10 Add-on
   const [videoCount, setVideoCount] = useState(0);
 
   // --- TELEPROMPTER SETTINGS ---
@@ -26,11 +26,14 @@ const PromptR = () => {
   const [scriptText, setScriptText] = useState("");
   const [scrollY, setScrollY] = useState(0);
 
+  // --- REVIEW STATE ---
+  const [reviewUrl, setReviewUrl] = useState(null);
+  const [rawVideoBlob, setRawVideoBlob] = useState(null);
+
   const isActive = mode === 'present';
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    // Load video count from Local Storage
     const savedCount = localStorage.getItem('promptr_video_count');
     if (savedCount) setVideoCount(parseInt(savedCount, 10));
 
@@ -76,41 +79,48 @@ const PromptR = () => {
     return () => cancelAnimationFrame(requestRef.current);
   }, [isActive, scrollSpeed, isRecording]);
 
-  // --- MP4 CONVERSION & SEQUENTIAL NAMING ---
-  const convertToMp4 = async (webmBlob, newCount) => {
-    setIsConverting(true);
+
+  // --- CLOUD API CONVERSION (LOOM SPEED) ---
+  const uploadAndConvert = async () => {
+    if (!rawVideoBlob) return;
+    setIsConverting(true); 
     
-    // Format: PromptR_001.mp4
-    const fileNumber = String(newCount).padStart(3, '0');
-    const finalFileName = `PromptR_${fileNumber}.mp4`;
+    const formData = new FormData();
+    formData.append('file', rawVideoBlob);
+    
+    // ⚠️ REPLACE THESE WITH YOUR CLOUDINARY INFO ⚠️
+    formData.append('upload_preset', 'YOUR_UNSIGNED_PRESET_NAME'); 
+    const cloudName = 'YOUR_CLOUD_NAME'; 
 
     try {
-      const ffmpeg = new FFmpeg();
-      await ffmpeg.load();
+      // 1. Blast it to Cloudinary
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+      const data = await response.json();
       
-      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-      await ffmpeg.exec(['-i', 'input.webm', 'output.mp4']);
-      const data = await ffmpeg.readFile('output.mp4');
+      // 2. Cloudinary converts to MP4 automatically
+      const finalMp4Url = data.secure_url.replace('.webm', '.mp4');
       
-      const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
-      const url = URL.createObjectURL(mp4Blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = finalFileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+      // 3. Trigger Native Download / Save
+      window.open(finalMp4Url, '_blank'); 
+      
     } catch (err) {
-      console.error("MP4 Conversion failed. Falling back to WebM.", err);
-      const url = URL.createObjectURL(webmBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `PromptR_Fallback_${fileNumber}.webm`;
-      a.click();
+      console.error("Cloud API Error. Falling back to local WebM.", err);
+      // Fallback: Give them the local file so they don't lose the video
+      const backupUrl = URL.createObjectURL(rawVideoBlob);
+      window.open(backupUrl, '_blank');
     }
+
     setIsConverting(false);
+    setReviewUrl(null);
+    setRawVideoBlob(null);
+    setMode('setup'); // Send back to start after saving
   };
+
 
   // --- RECORDING HANDLERS WITH TIERED WATERMARK ---
   const toggleRecording = () => {
@@ -123,7 +133,7 @@ const PromptR = () => {
         return;
       }
 
-      setScrollY(0); // Reset scroll position when recording starts
+      setScrollY(0); 
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -135,10 +145,15 @@ const PromptR = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
-          // FREE TIER ONLY: Draw Watermark
-          if (tier === 'free') {
+          // SMART WATERMARK LOGIC
+          const showWatermark = tier === 'free' || (tier === 'creator' && !removeWatermarkAddon);
+          
+          if (showWatermark) {
+            // Free = 24px (100%), Creator = 12px (50%)
+            const watermarkSize = tier === 'free' ? 24 : 12; 
+            
             ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; 
-            ctx.font = "bold 24px 'Plus Jakarta Sans', sans-serif";
+            ctx.font = `bold ${watermarkSize}px 'Plus Jakarta Sans', sans-serif`;
             ctx.textAlign = "right";
             ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
             ctx.shadowBlur = 8;
@@ -153,9 +168,7 @@ const PromptR = () => {
 
       const watermarkedStream = canvas.captureStream(30);
       const audioTracks = video.srcObject.getAudioTracks();
-      if (audioTracks.length > 0) {
-        watermarkedStream.addTrack(audioTracks[0]);
-      }
+      if (audioTracks.length > 0) watermarkedStream.addTrack(audioTracks[0]);
 
       const recorder = new MediaRecorder(watermarkedStream, { mimeType: 'video/webm' });
       let localChunks = [];
@@ -164,13 +177,16 @@ const PromptR = () => {
         if (e.data.size > 0) localChunks.push(e.data);
       };
 
-      recorder.onstop = async () => {
-        // Increment Counter and save to Local Storage
+      // WHEN RECORDING STOPS -> GO TO REVIEW MODE
+      recorder.onstop = () => {
         const newCount = videoCount + 1;
         setVideoCount(newCount);
         localStorage.setItem('promptr_video_count', newCount);
 
-        await convertToMp4(new Blob(localChunks, { type: 'video/webm' }), newCount); 
+        const finalBlob = new Blob(localChunks, { type: 'video/webm' });
+        setRawVideoBlob(finalBlob);
+        setReviewUrl(URL.createObjectURL(finalBlob));
+        setMode('review'); 
       };
 
       mediaRecorderRef.current = recorder;
@@ -182,20 +198,15 @@ const PromptR = () => {
 
   // --- NAVIGATION ---
   const launchSession = () => {
-    if (!checkLimits()) {
-      setMode('paywall');
-    } else {
-      setScrollY(0);
-      setMode('present');
-    }
+    if (!checkLimits()) setMode('paywall');
+    else { setScrollY(0); setMode('present'); }
   };
 
   const endSession = () => {
-    setMode('landing');
     if (isRecording) toggleRecording(); 
+    else setMode('landing');
   };
 
-  // MOCK PAYMENT GATEWAY (For testing limits)
   const upgradeTier = (newTier) => {
     setTier(newTier);
     setMode('landing');
@@ -204,22 +215,15 @@ const PromptR = () => {
   return (
     <div className="app-container">
       
-      {/* MOCK UPGRADE BUTTON FOR TESTING */}
+      {/* DEV TOGGLE BANNER */}
       <div className="dev-tier-toggle">
-        <span>Current Tier: {tier.toUpperCase()} | Videos: {videoCount}</span>
+        <span>{tier.toUpperCase()} | Vids: {videoCount} {removeWatermarkAddon && '| Addon: ON'}</span>
         {tier !== 'pro' && <button onClick={() => setMode('paywall')}>Upgrade</button>}
       </div>
 
-      <video 
-        ref={videoRef} 
-        autoPlay 
-        playsInline 
-        muted 
-        className="master-camera" 
-      />
-
+      <video ref={videoRef} autoPlay playsInline muted className="master-camera" />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-      <div className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}></div>
+      <div className={`camera-overlay ${(mode === 'present' || mode === 'review') ? 'light-dim' : 'heavy-dim'}`}></div>
 
       {/* --- SCREEN 1: LANDING --- */}
       {mode === 'landing' && (
@@ -228,11 +232,10 @@ const PromptR = () => {
           <div className="landing-content">
             <h1 className="premium-logo">Prompt<span className="accent">R</span></h1>
             <p className="premium-subtitle">Flawless video. Total eye contact.</p>
-            
             <button className="glass-card interactive-card main-cta" onClick={() => setMode('setup')}>
               <div className="card-icon blue-glow">🎙️</div>
               <h3>Start Teleprompter</h3>
-              <p>Record your script straight to your hard drive.</p>
+              <p>Type your script. Record flawlessly.</p>
             </button>
           </div>
         </div>
@@ -242,19 +245,13 @@ const PromptR = () => {
       {mode === 'setup' && (
         <div className="centered-wrapper scrollable-wrapper">
           <div className="setup-stack">
-            
             <div className="glass-card">
               <h2 className="gradient-text">Your Script</h2>
-              <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '10px' }}>
-                Tap the box to start typing or paste from your clipboard.
-              </p>
               <textarea 
                 className="premium-textarea"
                 value={scriptText}
                 onChange={(e) => setScriptText(e.target.value)}
-                placeholder="Type your script here, or tap to paste..."
-                rows="8"
-                style={{ width: '100%', resize: 'vertical' }}
+                placeholder="Type your script here, or paste from your clipboard..."
               />
             </div>
 
@@ -282,7 +279,6 @@ const PromptR = () => {
       {isActive && (
         <div className="presenter-engine">
           <div className="target-eyeline"><div className="glow-bar"></div></div>
-          
           <div className="scrolling-canvas">
             <div 
               className="scrolling-text"
@@ -300,21 +296,56 @@ const PromptR = () => {
         </div>
       )}
 
-      {/* --- SCREEN 4: THE PAYWALL --- */}
-      {mode === 'paywall' && (
+      {/* --- SCREEN 4: INSTANT REVIEW --- */}
+      {mode === 'review' && (
         <div className="centered-wrapper">
+          <div className="glass-card">
+            <h2 className="gradient-text">Review Your Take</h2>
+            <video src={reviewUrl} controls autoPlay className="review-player" />
+            
+            <div className="dock-btn-group" style={{ marginTop: '1rem' }}>
+              <button 
+                className="dock-btn secondary-btn" 
+                onClick={() => { setReviewUrl(null); setRawVideoBlob(null); setMode('setup'); }}
+                disabled={isConverting}
+              >
+                Discard
+              </button>
+              <button 
+                className="dock-btn primary-action" 
+                onClick={uploadAndConvert}
+                disabled={isConverting}
+              >
+                {isConverting ? 'Processing Cloud...' : 'Save & Download'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- SCREEN 5: THE PAYWALL --- */}
+      {mode === 'paywall' && (
+        <div className="centered-wrapper scrollable-wrapper">
           <div className="glass-card paywall-card">
-            <h2 className="gradient-text">Limit Reached</h2>
-            <p>You have recorded {videoCount} videos. Upgrade to continue using PromptR.</p>
+            <h2 className="gradient-text">Upgrade PromptR</h2>
+            <p>Unlock flawless presentations.</p>
             
             <div className="tier-options">
               <button className="tier-btn" onClick={() => upgradeTier('creator')}>
                 <strong>Creator Tier ($9/mo)</strong>
-                <span>30 Videos • No Watermark</span>
+                <span>30 Videos • 50% Smaller Watermark</span>
               </button>
-              <button className="tier-btn primary-action" onClick={() => upgradeTier('pro')}>
+              
+              {tier === 'creator' && !removeWatermarkAddon && (
+                <button className="tier-btn" onClick={() => { setRemoveWatermarkAddon(true); setMode('setup'); }}>
+                  <strong>+$10 Add-on (Creator Only)</strong>
+                  <span>Remove Watermark Completely</span>
+                </button>
+              )}
+
+              <button className="tier-btn primary-action" onClick={() => { upgradeTier('pro'); setRemoveWatermarkAddon(false); }}>
                 <strong>Pro Tier ($29/mo)</strong>
-                <span>Unlimited • No Watermark</span>
+                <span>Unlimited • 100% White-Label</span>
               </button>
             </div>
             
@@ -322,11 +353,12 @@ const PromptR = () => {
               Cancel
             </button>
           </div>
+          <div className="bottom-padding-spacer"></div> 
         </div>
       )}
 
       {/* --- FLOATING CONTROLS --- */}
-      {mode !== 'landing' && mode !== 'paywall' && (
+      {mode !== 'landing' && mode !== 'paywall' && mode !== 'review' && (
         <div className="floating-dock-container">
           <div className="premium-dock">
             {mode === 'setup' ? (
@@ -339,11 +371,8 @@ const PromptR = () => {
                 <button 
                   className={`dock-btn record-btn ${isRecording ? 'is-recording' : ''}`} 
                   onClick={toggleRecording}
-                  disabled={isConverting}
                 >
-                  {isConverting ? 'Processing...' : (
-                    <><span className="dot"></span>{isRecording ? 'Stop' : 'Record'}</>
-                  )}
+                  <span className="dot"></span>{isRecording ? 'Stop' : 'Record'}
                 </button>
                 <button className="dock-btn secondary-btn stop-action" onClick={endSession}>End</button>
               </>
