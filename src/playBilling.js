@@ -33,11 +33,11 @@ export async function purchaseOnAndroid(tier) {
   // Launch the native purchase flow
   const result = await PlayBilling.purchase({ productId });
 
-  // Verify the purchase with the backend
+  // Verify the purchase with the backend (POST /purchase/google-play)
   const verified = await verifyPurchase(
     result.purchaseToken,
     result.productId,
-    'android'
+    'android',
   );
 
   return verified;

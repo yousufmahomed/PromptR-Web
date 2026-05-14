@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import { auth, googleProvider } from './firebase.js';
 import {
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  onAuthStateChanged,
-  signOut,
-} from 'firebase/auth';
-import {
+  loginWithGoogle,
   fetchUserProfile,
   incrementVideoCount,
   createYocoCheckout,
+  getToken,
+  clearToken,
 } from './api.js';
 import './App.css';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const PromptR = () => {
   // --- CAMERA, RECORDING & SCROLL REFS ---
@@ -24,7 +21,7 @@ const PromptR = () => {
   const mediaRecorderRef = useRef(null);
 
   // --- AUTH STATE ---
-  const [authUser, setAuthUser] = useState(null);
+  const [authUser, setAuthUser] = useState(null); // { id, email, name, tier, videoCount }
   const [authLoading, setAuthLoading] = useState(true);
 
   // --- APP STATE & MONETIZATION ---
@@ -37,7 +34,6 @@ const PromptR = () => {
   const [videoCount, setVideoCount] = useState(0);
   const [maxVideos, setMaxVideos] = useState(10);
   const [canRecord, setCanRecord] = useState(true);
-  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // --- TELEPROMPTER SETTINGS ---
   const [fontSize, setFontSize] = useState(48);
@@ -51,38 +47,103 @@ const PromptR = () => {
 
   const isActive = mode === 'present';
 
-  // --- FIREBASE AUTH LISTENER ---
+  // --- LOAD USER ON MOUNT (if JWT exists) ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setAuthUser(user);
-      setAuthLoading(false);
-
-      if (user) {
-        // Fetch profile from backend
+    const loadUser = async () => {
+      if (getToken()) {
         try {
           const profile = await fetchUserProfile();
+          setAuthUser(profile);
           setTier(profile.tier);
           setVideoCount(profile.videoCount);
           setMaxVideos(profile.maxVideos);
           setCanRecord(profile.canRecord);
-          setProfileLoaded(true);
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
-          // Fallback to free tier defaults
-          setProfileLoaded(true);
+        } catch {
+          // Token expired or invalid
+          clearToken();
         }
-      } else {
-        // Reset to defaults when signed out
-        setTier('free');
-        setVideoCount(0);
-        setMaxVideos(10);
-        setCanRecord(true);
-        setProfileLoaded(false);
       }
-    });
-
-    return () => unsubscribe();
+      setAuthLoading(false);
+    };
+    loadUser();
   }, []);
+
+  // --- GOOGLE SIGN-IN (Google Identity Services) ---
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      window.google?.accounts?.id?.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCallback,
+        auto_select: false,
+      });
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleGoogleCallback = async (response) => {
+    try {
+      const data = await loginWithGoogle(response.credential);
+      setAuthUser(data.user);
+      setTier(data.user.tier);
+      setVideoCount(data.user.videoCount);
+
+      // Fetch full profile for maxVideos/canRecord
+      const profile = await fetchUserProfile();
+      setMaxVideos(profile.maxVideos);
+      setCanRecord(profile.canRecord);
+
+      // If user was on auth screen, go to setup
+      if (mode === 'auth' || mode === 'paywall') {
+        setMode('setup');
+      }
+    } catch (err) {
+      console.error('Google login failed:', err);
+      alert('Sign-in failed. Please try again.');
+    }
+  };
+
+  const handleSignIn = () => {
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Fallback: render the button
+          const btnContainer = document.getElementById('google-signin-btn');
+          if (btnContainer) {
+            window.google.accounts.id.renderButton(btnContainer, {
+              theme: 'filled_black',
+              size: 'large',
+              width: '300',
+              text: 'signin_with',
+            });
+          }
+        }
+      });
+    } else {
+      alert('Google Sign-In is not configured. Set VITE_GOOGLE_CLIENT_ID.');
+    }
+  };
+
+  const handleSignOut = () => {
+    clearToken();
+    setAuthUser(null);
+    setTier('free');
+    setVideoCount(0);
+    setMaxVideos(10);
+    setCanRecord(true);
+    setMode('landing');
+    // Revoke Google session
+    window.google?.accounts?.id?.disableAutoSelect();
+  };
 
   // --- CHECK FOR PAYMENT REDIRECT ---
   useEffect(() => {
@@ -92,8 +153,9 @@ const PromptR = () => {
 
     if (paymentStatus === 'success' && paymentTier) {
       // Payment succeeded – refresh profile to get new tier
-      if (authUser) {
+      if (getToken()) {
         fetchUserProfile().then((profile) => {
+          setAuthUser(profile);
           setTier(profile.tier);
           setVideoCount(profile.videoCount);
           setMaxVideos(profile.maxVideos);
@@ -105,11 +167,6 @@ const PromptR = () => {
     } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
       window.history.replaceState({}, '', window.location.pathname);
     }
-
-    // Handle Firebase redirect result
-    getRedirectResult(auth).catch((err) => {
-      console.error('Redirect sign-in error:', err);
-    });
   }, [authUser]);
 
   // --- CAMERA INIT ---
@@ -135,26 +192,6 @@ const PromptR = () => {
       }
     };
   }, []);
-
-  // --- AUTH HANDLERS ---
-  const handleSignIn = async () => {
-    try {
-      // Try popup first (works on desktop & most browsers)
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
-        // Fallback to redirect for mobile / blocked popups
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        console.error('Sign-in error:', err);
-      }
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut(auth);
-    setMode('landing');
-  };
 
   // --- LIMIT CHECKS ---
   const checkLimits = () => {
@@ -281,7 +318,7 @@ const PromptR = () => {
           setCanRecord(result.canRecord);
           await convertToMp4(
             new Blob(localChunks, { type: 'video/webm' }),
-            result.videoCount
+            result.videoCount,
           );
         } catch (err) {
           console.error('Failed to increment video count:', err);
@@ -290,7 +327,7 @@ const PromptR = () => {
           setVideoCount(fallbackCount);
           await convertToMp4(
             new Blob(localChunks, { type: 'video/webm' }),
-            fallbackCount
+            fallbackCount,
           );
         }
       };
@@ -342,7 +379,12 @@ const PromptR = () => {
 
   // --- TIER DISPLAY HELPERS ---
   const tierLabel = (t) => {
-    const labels = { free: 'FREE', creator: 'CREATOR', pro: 'PRO', studio: 'STUDIO' };
+    const labels = {
+      free: 'FREE',
+      creator: 'CREATOR',
+      pro: 'PRO',
+      studio: 'STUDIO',
+    };
     return labels[t] || t.toUpperCase();
   };
 
@@ -359,7 +401,9 @@ const PromptR = () => {
           <h1 className="premium-logo">
             Prompt<span className="accent">R</span>
           </h1>
-          <p className="premium-subtitle" style={{ marginTop: '1rem' }}>Loading...</p>
+          <p className="premium-subtitle" style={{ marginTop: '1rem' }}>
+            Loading...
+          </p>
         </div>
       </div>
     );
@@ -381,7 +425,13 @@ const PromptR = () => {
         )}
       </div>
 
-      <video ref={videoRef} autoPlay playsInline muted className="master-camera" />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="master-camera"
+      />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       <div
         className={`camera-overlay ${mode === 'present' ? 'light-dim' : 'heavy-dim'}`}
@@ -396,10 +446,22 @@ const PromptR = () => {
             <button
               className="tier-btn primary-action"
               onClick={handleSignIn}
-              style={{ width: '100%', borderRadius: '100px', padding: '1.2rem' }}
+              style={{
+                width: '100%',
+                borderRadius: '100px',
+                padding: '1.2rem',
+              }}
             >
               <strong>🔑 Sign In with Google</strong>
             </button>
+            <div
+              id="google-signin-btn"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginTop: '16px',
+              }}
+            ></div>
             <button
               className="dock-btn secondary-btn"
               style={{ marginTop: '20px' }}
@@ -419,7 +481,21 @@ const PromptR = () => {
             <h1 className="premium-logo">
               Prompt<span className="accent">R</span>
             </h1>
-            <p className="premium-subtitle">Flawless video. Total eye contact.</p>
+            <p className="premium-subtitle">
+              Flawless video. Total eye contact.
+            </p>
+
+            {!authUser && (
+              <button
+                className="glass-card interactive-card"
+                onClick={handleSignIn}
+                style={{ marginBottom: '12px' }}
+              >
+                <div className="card-icon blue-glow">🔑</div>
+                <h3>Sign In with Google</h3>
+                <p>Sign in to save your recordings and unlock features.</p>
+              </button>
+            )}
 
             <button
               className="glass-card interactive-card main-cta"
@@ -429,6 +505,15 @@ const PromptR = () => {
               <h3>Start Teleprompter</h3>
               <p>Record your script straight to your hard drive.</p>
             </button>
+
+            <div
+              id="google-signin-btn"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginTop: '16px',
+              }}
+            ></div>
           </div>
         </div>
       )}
@@ -439,7 +524,9 @@ const PromptR = () => {
           <div className="setup-stack">
             <div className="glass-card">
               <h2 className="gradient-text">Your Script</h2>
-              <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '10px' }}>
+              <p
+                style={{ fontSize: '14px', opacity: 0.7, marginBottom: '10px' }}
+              >
                 Tap the box to start typing or paste from your clipboard.
               </p>
               <textarea
@@ -537,13 +624,27 @@ const PromptR = () => {
             </p>
 
             {!authUser ? (
-              <button
-                className="tier-btn primary-action"
-                onClick={handleSignIn}
-                style={{ width: '100%', borderRadius: '100px', padding: '1.2rem' }}
-              >
-                <strong>🔑 Sign In with Google</strong>
-              </button>
+              <>
+                <button
+                  className="tier-btn primary-action"
+                  onClick={handleSignIn}
+                  style={{
+                    width: '100%',
+                    borderRadius: '100px',
+                    padding: '1.2rem',
+                  }}
+                >
+                  <strong>🔑 Sign In with Google</strong>
+                </button>
+                <div
+                  id="google-signin-btn"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    marginTop: '16px',
+                  }}
+                ></div>
+              </>
             ) : (
               <div className="tier-options">
                 <button
@@ -551,7 +652,7 @@ const PromptR = () => {
                   onClick={() => handleYocoPayment('creator')}
                   disabled={paymentLoading}
                 >
-                  <strong>Creator — R25</strong>
+                  <strong>Creator — $25</strong>
                   <span>50 Videos • No Watermark</span>
                 </button>
                 <button
@@ -559,7 +660,7 @@ const PromptR = () => {
                   onClick={() => handleYocoPayment('pro')}
                   disabled={paymentLoading}
                 >
-                  <strong>Pro — R50</strong>
+                  <strong>Pro — $50</strong>
                   <span>Unlimited Videos • No Watermark</span>
                 </button>
                 <button
@@ -567,7 +668,7 @@ const PromptR = () => {
                   onClick={() => handleYocoPayment('studio')}
                   disabled={paymentLoading}
                 >
-                  <strong>Studio — R100</strong>
+                  <strong>Studio — $100</strong>
                   <span>Unlimited • Custom Content • Priority Support</span>
                 </button>
               </div>
@@ -596,7 +697,10 @@ const PromptR = () => {
                 >
                   Back
                 </button>
-                <button className="dock-btn primary-action" onClick={launchSession}>
+                <button
+                  className="dock-btn primary-action"
+                  onClick={launchSession}
+                >
                   Launch Prompter
                 </button>
               </>
@@ -616,7 +720,10 @@ const PromptR = () => {
                     </>
                   )}
                 </button>
-                <button className="dock-btn secondary-btn stop-action" onClick={endSession}>
+                <button
+                  className="dock-btn secondary-btn stop-action"
+                  onClick={endSession}
+                >
                   End
                 </button>
               </>
