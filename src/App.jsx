@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
 import './App.css'; 
 
 const PromptR = () => {
@@ -30,10 +29,14 @@ const PromptR = () => {
   const [reviewUrl, setReviewUrl] = useState(null);
   const [rawVideoBlob, setRawVideoBlob] = useState(null);
 
+  // --- NOTIFICATIONS ---
+  const [toastMessage, setToastMessage] = useState(null);
+
   const isActive = mode === 'present';
 
   // --- INITIALIZATION ---
   useEffect(() => {
+    // Load saved video count
     const savedCount = localStorage.getItem('promptr_video_count');
     if (savedCount) setVideoCount(parseInt(savedCount, 10));
 
@@ -45,6 +48,7 @@ const PromptR = () => {
         }
       } catch (err) {
         console.error("Camera access denied.", err);
+        triggerToast("⚠️ Camera access denied. Please check your permissions.");
       }
     };
     startCamera();
@@ -57,7 +61,12 @@ const PromptR = () => {
     };
   }, []);
 
-  // --- LIMIT CHECKS ---
+  // --- UTILS ---
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000); 
+  };
+
   const checkLimits = () => {
     if (tier === 'free' && videoCount >= 10) return false;
     if (tier === 'creator' && videoCount >= 30) return false;
@@ -105,14 +114,16 @@ const PromptR = () => {
       // 2. Cloudinary converts to MP4 automatically
       const finalMp4Url = data.secure_url.replace('.webm', '.mp4');
       
-      // 3. Trigger Native Download / Save
+      // 3. Trigger Native Download
       window.open(finalMp4Url, '_blank'); 
+      triggerToast("✅ Video saved to your Downloads folder!");
       
     } catch (err) {
       console.error("Cloud API Error. Falling back to local WebM.", err);
       // Fallback: Give them the local file so they don't lose the video
       const backupUrl = URL.createObjectURL(rawVideoBlob);
       window.open(backupUrl, '_blank');
+      triggerToast("⚠️ Cloud error. Saved locally instead.");
     }
 
     setIsConverting(false);
@@ -150,9 +161,10 @@ const PromptR = () => {
           
           if (showWatermark) {
             // Free = 24px (100%), Creator = 12px (50%)
-            const watermarkSize = tier === 'free' ? 24 : 12; 
+            const watermarkSize = tier === 'free' ? 24 : 14; 
+            const opacity = tier === 'free' ? '0.6' : '0.4'; // Slightly more transparent for creators
             
-            ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; 
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`; 
             ctx.font = `bold ${watermarkSize}px 'Plus Jakarta Sans', sans-serif`;
             ctx.textAlign = "right";
             ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
@@ -209,12 +221,20 @@ const PromptR = () => {
 
   const upgradeTier = (newTier) => {
     setTier(newTier);
+    triggerToast(`🎉 Upgraded to ${newTier.toUpperCase()} tier!`);
     setMode('landing');
   };
 
   return (
     <div className="app-container">
       
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div className="premium-toast">
+          {toastMessage}
+        </div>
+      )}
+
       {/* DEV TOGGLE BANNER */}
       <div className="dev-tier-toggle">
         <span>{tier.toUpperCase()} | Vids: {videoCount} {removeWatermarkAddon && '| Addon: ON'}</span>
@@ -316,7 +336,7 @@ const PromptR = () => {
                 onClick={uploadAndConvert}
                 disabled={isConverting}
               >
-                {isConverting ? 'Processing Cloud...' : 'Save & Download'}
+                {isConverting ? 'Processing...' : 'Save & Download'}
               </button>
             </div>
           </div>
@@ -337,7 +357,11 @@ const PromptR = () => {
               </button>
               
               {tier === 'creator' && !removeWatermarkAddon && (
-                <button className="tier-btn" onClick={() => { setRemoveWatermarkAddon(true); setMode('setup'); }}>
+                <button className="tier-btn" onClick={() => { 
+                  setRemoveWatermarkAddon(true); 
+                  triggerToast("✅ Watermark removal activated!");
+                  setMode('setup'); 
+                }}>
                   <strong>+$10 Add-on (Creator Only)</strong>
                   <span>Remove Watermark Completely</span>
                 </button>
