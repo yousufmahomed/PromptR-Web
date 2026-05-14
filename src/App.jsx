@@ -245,11 +245,16 @@ const PromptR = () => {
             
             <div className="glass-card">
               <h2 className="gradient-text">Your Script</h2>
+              <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '10px' }}>
+                Tap the box to start typing or paste from your clipboard.
+              </p>
               <textarea 
                 className="premium-textarea"
                 value={scriptText}
                 onChange={(e) => setScriptText(e.target.value)}
-                placeholder="Paste your script here..."
+                placeholder="Type your script here, or tap to paste..."
+                rows="8"
+                style={{ width: '100%', resize: 'vertical' }}
               />
             </div>
 
